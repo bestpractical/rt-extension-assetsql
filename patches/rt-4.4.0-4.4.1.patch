@@ -121,3 +121,15 @@ index f4ac8a9..e672e3b 100644
  };
  
  
+diff --git a/share/html/Asset/Search/index.html b/share/html/Asset/Search/index.html
+index f1ebfa5..903ceb4 100644
+--- a/share/html/Asset/Search/index.html
++++ b/share/html/Asset/Search/index.html
+@@ -58,6 +58,7 @@ my $title = ( $ARGS{'SearchAssets'} or $ARGS{q} ) ?
+       loc("Found [quant,_1,asset,assets]",$assets->Count)
+     : loc("Assets");
+ 
++$m->callback( CallbackName => 'Initial', Assets => $assets, ARGSRef => \%ARGS);
+ </%init>
+ <& /Elements/Header, Title => $title &>
+ <& /Elements/Tabs &>
