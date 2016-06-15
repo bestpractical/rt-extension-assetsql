@@ -5,7 +5,7 @@ $ARGSRef
 <%INIT>
 # replace Search -> Assets with a submenu (if the user has ShowAssetsMenu)
 if (my $search_assets = Menu()->child("search")->child("assets")) {
-    $search_assets->path('/Asset/Search/Build.html');
+    $search_assets->path('/Asset/Search/Build.html?NewQuery=1');
     if (!RT->Config->Get('AssetSQL_HideSimpleSearch')) {
         $search_assets->child("asset_simple", title => loc("Simple Search"), path => "/Asset/Search/");
         $search_assets->child("assetsql", title => loc("New Search"), path => "/Asset/Search/Build.html?NewQuery=1");
