@@ -6,14 +6,21 @@ $ARGSRef
 # replace Search -> Assets with a submenu (if the user has ShowAssetsMenu)
 if (my $search_assets = Menu()->child("search")->child("assets")) {
     $search_assets->path('/Asset/Search/Build.html');
-    $search_assets->child("asset_simple", title => loc("Simple Search"), path => "/Asset/Search/");
-    $search_assets->child("assetsql", title => loc("New Search"), path => "/Asset/Search/Build.html?NewQuery=1");
+    if (!RT->Config->Get('AssetSQL_HideSimpleSearch')) {
+        $search_assets->child("asset_simple", title => loc("Simple Search"), path => "/Asset/Search/");
+        $search_assets->child("assetsql", title => loc("New Search"), path => "/Asset/Search/Build.html?NewQuery=1");
+    }
 }
 
 # add Assets -> New Search (if the user has ShowAssetsMenu)
 if (Menu()->child("assets") && (my $assets_search = Menu()->child("assets")->child("search"))) {
-    $assets_search->title(loc("Simple Search"));
-    $assets_search->add_before("assetsql", title => loc("New Search"), path => "/Asset/Search/Build.html?NewQuery=1");
+    if (RT->Config->Get('AssetSQL_HideSimpleSearch')) {
+        $assets_search->path("/Asset/Search/Build.html?NewQuery=1");
+    }
+    else {
+        $assets_search->title(loc("Simple Search"));
+        $assets_search->add_before("assetsql", title => loc("New Search"), path => "/Asset/Search/Build.html?NewQuery=1");
+    }
 }
 
 my $query_string = sub {

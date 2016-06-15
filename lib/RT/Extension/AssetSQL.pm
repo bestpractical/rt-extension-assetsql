@@ -133,6 +133,11 @@ Add this line:
 
     Plugin( "RT::Extension::AssetSQL" );
 
+If you wish to hide the legacy Asset Simple Search, add the following line
+as well:
+
+    Set($AssetSQL_HideSimpleSearch, 1);
+
 =item Clear your mason cache
 
     rm -rf /opt/rt4/var/mason_data/obj
