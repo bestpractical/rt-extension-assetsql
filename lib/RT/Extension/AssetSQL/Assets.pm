@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+use 5.010;
 
 package RT::Assets;
 
@@ -1251,6 +1252,101 @@ sub _parser {
     $tree->ParseAssetSQL(
         Query => $string,
         CurrentUser => $self->CurrentUser,
+    );
+
+    my $escape_quotes = sub {
+        my $text = shift;
+        $text =~ s{(['\\])}{\\$1}g;
+        return $text;
+    };
+
+    state ( $active_status_node, $inactive_status_node );
+
+    $tree->traverse(
+        sub {
+            my $node = shift;
+            return unless $node->isLeaf and $node->getNodeValue;
+            my ($key, $subkey, $meta, $op, $value, $bundle)
+                = @{$node->getNodeValue}{qw/Key Subkey Meta Op Value Bundle/};
+            return unless $key eq "Status" && $value =~ /^(?:__(?:in)?active__)$/i;
+
+            my $parent = $node->getParent;
+            my $index = $node->getIndex;
+
+            if ( ( lc $value eq '__inactive__' && $op eq '=' ) || ( lc $value eq '__active__' && $op eq '!=' ) ) {
+                unless ( $inactive_status_node ) {
+                    my %lifecycle =
+                      map { $_ => $RT::Lifecycle::LIFECYCLES{ $_ }{ inactive } }
+                      grep { @{ $RT::Lifecycle::LIFECYCLES{ $_ }{ inactive } || [] } }
+                      keys %RT::Lifecycle::LIFECYCLES;
+                    return unless %lifecycle;
+
+                    my $sql;
+                    if ( keys %lifecycle == 1 ) {
+                        $sql = join ' OR ', map { qq{ Status = '$_' } } map { $escape_quotes->($_) } map { @$_ } values %lifecycle;
+                    }
+                    else {
+                        my @inactive_sql;
+                        for my $name ( keys %lifecycle ) {
+                            my $escaped_name = $escape_quotes->($name);
+                            my $inactive_sql =
+                                qq{Lifecycle = '$escaped_name'}
+                              . ' AND ('
+                              . join( ' OR ', map { qq{ Status = '$_' } } map { $escape_quotes->($_) } @{ $lifecycle{ $name } } ) . ')';
+                            push @inactive_sql, qq{($inactive_sql)};
+                        }
+                        $sql = join ' OR ', @inactive_sql;
+                    }
+                    $inactive_status_node = RT::Interface::Web::QueryBuilder::Tree->new;
+                    $inactive_status_node->ParseAssetSQL(
+                        Query       => $sql,
+                        CurrentUser => $self->CurrentUser,
+                    );
+                }
+                $parent->removeChild( $node );
+                $parent->insertChild( $index, $inactive_status_node );
+            }
+            else {
+                unless ( $active_status_node ) {
+                    my %lifecycle =
+                      map {
+                        $_ => [
+                            @{ $RT::Lifecycle::LIFECYCLES{ $_ }{ initial } || [] },
+                            @{ $RT::Lifecycle::LIFECYCLES{ $_ }{ active }  || [] },
+                          ]
+                      }
+                      grep {
+                             @{ $RT::Lifecycle::LIFECYCLES{ $_ }{ initial } || [] }
+                          || @{ $RT::Lifecycle::LIFECYCLES{ $_ }{ active }  || [] }
+                      } keys %RT::Lifecycle::LIFECYCLES;
+                    return unless %lifecycle;
+
+                    my $sql;
+                    if ( keys %lifecycle == 1 ) {
+                        $sql = join ' OR ', map { qq{ Status = '$_' } } map { $escape_quotes->($_) } map { @$_ } values %lifecycle;
+                    }
+                    else {
+                        my @active_sql;
+                        for my $name ( keys %lifecycle ) {
+                            my $escaped_name = $escape_quotes->($name);
+                            my $active_sql =
+                                qq{Lifecycle = '$escaped_name'}
+                              . ' AND ('
+                              . join( ' OR ', map { qq{ Status = '$_' } } map { $escape_quotes->($_) } @{ $lifecycle{ $name } } ) . ')';
+                            push @active_sql, qq{($active_sql)};
+                        }
+                        $sql = join ' OR ', @active_sql;
+                    }
+                    $active_status_node = RT::Interface::Web::QueryBuilder::Tree->new;
+                    $active_status_node->ParseAssetSQL(
+                        Query       => $sql,
+                        CurrentUser => $self->CurrentUser,
+                    );
+                }
+                $parent->removeChild( $node );
+                $parent->insertChild( $index, $active_status_node );
+            }
+        }
     );
 
     # Perform an optimization pass looking for watcher bundling
