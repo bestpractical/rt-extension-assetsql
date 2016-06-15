@@ -1,0 +1,43 @@
+diff --git a/share/html/Elements/CollectionList b/share/html/Elements/CollectionList
+index 5325b2e..42a2591 100644
+--- a/share/html/Elements/CollectionList
++++ b/share/html/Elements/CollectionList
+@@ -50,6 +50,10 @@ if (!$Collection && $Class eq 'RT::Tickets') {
+     $Collection = RT::Tickets->new( $session{'CurrentUser'} );
+     $Collection->FromSQL($Query);
+ }
++elsif (!$Collection && $Class eq 'RT::Assets') {
++    $Collection = RT::Assets->new( $session{'CurrentUser'} );
++    $Collection->FromSQL($Query);
++}
+ 
+ # flip HasResults from undef to 0 to indicate there was a search, so
+ # dashboard mail can be suppressed if there are no results
+diff --git a/share/html/Elements/ShowSearch b/share/html/Elements/ShowSearch
+index 15b7b75..4234387 100644
+--- a/share/html/Elements/ShowSearch
++++ b/share/html/Elements/ShowSearch
+@@ -52,7 +52,7 @@
+     titleright => $customize ? loc('Edit') : '',
+     titleright_href => $customize,
+     hideable => $hideable &>
+-<& $query_display_component, hideable => $hideable, %$ProcessedSearchArg, ShowNavigation => 0, Class => 'RT::Tickets', HasResults => $HasResults &>
++<& $query_display_component, hideable => $hideable, %$ProcessedSearchArg, ShowNavigation => 0, Class => $SearchArg && $SearchArg->{SearchType} eq 'Asset' ? 'RT::Assets' : 'RT::Tickets', HasResults => $HasResults &>
+ </&>
+ <%init>
+ my $search;
+@@ -76,7 +76,13 @@ if ($SavedSearch) {
+     }
+     $SearchArg->{'SavedSearchId'} ||= $SavedSearch;
+     $SearchArg->{'SearchType'} ||= 'Ticket';
+-    if ( $SearchArg->{SearchType} ne 'Ticket' ) {
++    if ( $SearchArg->{SearchType} eq 'Asset' ) {
++        $query_link_url = RT->Config->Get('WebPath') . "/Asset/Search/Results.html";
++        $customize = RT->Config->Get('WebPath') . '/Asset/Search/Build.html?'
++            . $m->comp( '/Elements/QueryString',
++            SavedSearchLoad => $SavedSearch );
++    }
++    elsif ( $SearchArg->{SearchType} ne 'Ticket' ) {
+ 
+         # XXX: dispatch to different handler here
+         $query_display_component

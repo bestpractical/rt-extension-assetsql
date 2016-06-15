@@ -1,0 +1,196 @@
+<& NewListActions, actions => $actions &>
+<&|/Widgets/TitleBox, title => join(': ', grep defined, loc("Current search"), $Description) &>
+
+<select size="10" name="clauses" style="width: 100%" multiple="multiple">
+% $m->out($optionlist);
+</select>
+
+<p align="center">
+<input type="submit" class="button" name="Up" value=" &uarr; " />
+<input type="submit" class="button" name="Down" value=" &darr; " />
+<input type="submit" class="button" name="Left" value=" &larr; " />
+<input type="submit" class="button" name="Right" value=" &rarr; " />
+<input type="submit" class="button" name="Toggle" value="<&|/l&>And/Or</&>" />
+<input type="submit" class="button" name="DeleteClause" value="<&|/l&>Delete</&>" />
+%#<input type="submit" class="button" name="EditQuery" value="Advanced" />
+</p>
+
+</&>
+<%ARGS>
+$Description => undef
+$optionlist => ''
+$actions => []
+</%ARGS>
+
+<%METHOD Process>
+<%ARGS>
+$Tree
+$Selected
+@New       => ()
+</%ARGS>
+<%INIT>
+
+my @NewSelection = ();
+
+my @results;
+if ( $ARGS{'Up'} || $ARGS{'Down'} ) {
+    if (@$Selected) {
+        foreach my $value (@$Selected) {
+            my $parent = $value->getParent;
+            my $index = $value->getIndex;
+            my $newindex = $index;
+            $newindex++ if $ARGS{'Down'};
+            $newindex-- if $ARGS{'Up'};
+            if ( $newindex < 0 || $newindex >= $parent->getChildCount ) {
+                push( @results, [ loc("error: can't move up"), -1 ] ) if $ARGS{'Up'};
+                push( @results, [ loc("error: can't move down"), -1 ] ) if $ARGS{'Down'};
+                next;
+            }
+
+            $parent->removeChild( $index );
+            $parent->insertChild( $newindex, $value );
+        }
+    }
+    else {
+        push( @results, [ loc("error: nothing to move"), -1 ] );
+    }
+}
+elsif ( $ARGS{"Left"} ) {
+    if (@$Selected) {
+        foreach my $value (@$Selected) {
+            my $parent = $value->getParent;
+            if( $value->isRoot || $parent->isRoot ) {
+                push( @results, [ loc("error: can't move left"), -1 ] );
+                next;
+            }
+
+            my $grandparent = $parent->getParent;
+            if( $grandparent->isRoot ) {
+                push( @results, [ loc("error: can't move left"), -1 ] );
+                next;
+            }
+            
+            my $index = $parent->getIndex;
+            $parent->removeChild($value);
+            $grandparent->insertChild( $index, $value );
+            if ( $parent->isLeaf ) {
+                $grandparent->removeChild($parent);
+            }
+        }
+    }
+    else {
+        push( @results, [ loc("error: nothing to move"), -1 ] );
+    }
+}
+elsif ( $ARGS{"Right"} ) {
+    if (@$Selected) {
+        foreach my $value (@$Selected) {
+            my $parent = $value->getParent;
+            my $index  = $value->getIndex;
+
+            my $newparent;
+            if ( $index > 0 ) {
+                my $sibling = $parent->getChild( $index - 1 );
+                $newparent = $sibling unless $sibling->isLeaf;
+            }
+            $newparent ||= RT::Interface::Web::QueryBuilder::Tree->new( $ARGS{'AndOr'} || 'AND', $parent );
+
+            $parent->removeChild($value);
+            $newparent->addChild($value);
+        }
+    }
+    else {
+        push( @results, [ loc("error: nothing to move"), -1 ] );
+    }
+}
+elsif ( $ARGS{"DeleteClause"} ) {
+    if (@$Selected) {
+        my (@top);
+        my %Selected = map { $_ => 1 } @$Selected;
+        foreach my $node ( @$Selected ) {
+            my $tmp = $node->getParent;
+            while ( !$Selected{ $tmp } && !$tmp->isRoot ) {
+                $tmp = $tmp->getParent;
+            }
+            next if $Selected{ $tmp };
+            push @top, $node;
+        }
+
+        my %seen;
+        my @non_siblings_top = grep !$seen{ $_->getParent }++, @top;
+
+        foreach ( @New ) {
+            my $add = $_->clone;
+            foreach my $selected( @non_siblings_top ) {
+                my $newindex = $selected->getIndex + 1;
+                $selected->insertSibling( $newindex, $add );
+            }
+            $add->getParent->setNodeValue( $ARGS{'AndOr'} );
+            push @NewSelection, $add;
+        }
+        @New = ();
+    
+        while( my $node = shift @top ) {
+            my $parent = $node->getParent;
+            $parent->removeChild($node);
+            $node->DESTROY;
+        }
+        @$Selected = ();
+    }
+    else {
+        push( @results, [ loc("error: nothing to delete"), -1 ] );
+    }
+}
+elsif ( $ARGS{"Toggle"} ) {
+    if (@$Selected) {
+        my %seen;
+        my @unique_nodes = grep !$seen{ $_ + 0 }++,
+            map ref $_->getNodeValue? $_->getParent: $_,
+            @$Selected;
+
+        foreach my $node ( @unique_nodes ) {
+            if ( $node->getNodeValue eq 'AND' ) {
+                $node->setNodeValue('OR');
+            }
+            else {
+                $node->setNodeValue('AND');
+            }
+        }
+    }
+    else {
+        push( @results, [ loc("error: nothing to toggle"), -1 ] );
+    }
+}
+
+if ( @New && @$Selected ) {
+    my %seen;
+    my @non_siblings_selected = grep !$seen{ $_->getParent }++, @$Selected;
+
+    foreach ( @New ) {
+        my $add = $_->clone;
+        foreach my $selected( @non_siblings_selected ) {
+            my $newindex = $selected->getIndex + 1;
+            $selected->insertSibling( $newindex, $add );
+        }
+        $add->getParent->setNodeValue( $ARGS{'AndOr'} );
+        push @NewSelection, $add;
+    }
+    @$Selected = ();
+}
+elsif ( @New ) {
+    foreach ( @New ) {
+        my $add = $_->clone;
+        $Tree->addChild( $add );
+        push @NewSelection, $add;
+    }
+    $Tree->setNodeValue( $ARGS{'AndOr'} );
+}
+$_->DESTROY foreach @New;
+
+push @$Selected, @NewSelection;
+
+$Tree->PruneChildlessAggregators;
+
+return @results;
+</%INIT>
+</%METHOD>

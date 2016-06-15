@@ -9,6 +9,20 @@ INSTALLATION
     make install
         This step may require root permissions.
 
+    Patch your RT
+        AssetSQL requires a small patch to work on versions of RT prior to
+        4.4.2. To patch such older versions of RT, run:
+
+            patch -d /opt/rt4 -p1 < patches/rt-4.4.0-4.4.1.patch
+
+        RT versions 4.4.2 and later already contain the above patch.
+
+        All versions of RT require the following patch for AssetSQL support:
+
+            patch -d /opt/rt4 -p1 < patches/assetsql.patch
+
+        You must apply both patches if you're on RT 4.4.0 or 4.4.1.
+
     Edit your /opt/rt4/etc/RT_SiteConfig.pm
         Add this line:
 

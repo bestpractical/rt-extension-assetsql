@@ -1,0 +1,123 @@
+diff --git a/lib/RT/Assets.pm b/lib/RT/Assets.pm
+index b52308a..e05a7ae 100644
+--- a/lib/RT/Assets.pm
++++ b/lib/RT/Assets.pm
+@@ -241,7 +241,7 @@ sub OrderByCols {
+     my $class = $self->_RoleGroupClass;
+ 
+     for my $row (@_) {
+-        if ($row->{FIELD} =~ /^CF\.(?:\{(.*)\}|(.*))$/) {
++        if ($row->{FIELD} =~ /^(?:CF|CustomField)\.(?:\{(.*)\}|(.*))$/) {
+             my $name = $1 || $2;
+             my $cf = RT::CustomField->new( $self->CurrentUser );
+             $cf->LoadByNameAndCatalog(
+diff --git a/share/html/Asset/Elements/AssetSearchBasics b/share/html/Asset/Elements/AssetSearchBasics
+index de9c35b..9557c8c 100644
+--- a/share/html/Asset/Elements/AssetSearchBasics
++++ b/share/html/Asset/Elements/AssetSearchBasics
+@@ -54,7 +54,7 @@
+ </td></tr>
+ <tr class="asset-status"><td class="label"><label for="Status"><&|/l&>Status</&></label></td>
+     <td class="value" colspan="3">
+-<& /Asset/Elements/SelectStatus, Name => 'Status', CatalogObj => $CatalogObj, DefaultValue => 1,
++<& /Asset/Elements/SelectStatus, Name => 'Status', Catalogs => { $CatalogObj->id => 1 }, DefaultValue => 1,
+        Default => ($ARGS{'Status'} || '') &>
+ </td></tr>
+ <tr class="asset-name"><td class="label"><label for="Name"><&|/l&>Name</&></label></td>
+diff --git a/share/html/Asset/Elements/SelectCatalog b/share/html/Asset/Elements/SelectCatalog
+index aa5d5fc..8c65e46 100644
+--- a/share/html/Asset/Elements/SelectCatalog
++++ b/share/html/Asset/Elements/SelectCatalog
+@@ -48,7 +48,7 @@
+ <& /Elements/SelectObject,
+     Name           => "Catalog",
+     ShowAll        => $ShowAll,
+-    ShowNullOption => 0,
++    ShowNullOption => $ShowNullOption,
+     CheckRight     => "CreateAsset",
+     %ARGS,
+     ObjectType     => "Catalog",
+@@ -59,6 +59,7 @@
+ $ShowAll => 0
+ $Default => undef
+ $UpdateSession => 1
++$ShowNullOption => 0
+ </%args>
+ <%init>
+ my $catalog_obj = LoadDefaultCatalog($Default || '');
+diff --git a/share/html/Asset/Elements/SelectStatus b/share/html/Asset/Elements/SelectStatus
+index ef3e826..99717da 100644
+--- a/share/html/Asset/Elements/SelectStatus
++++ b/share/html/Asset/Elements/SelectStatus
+@@ -45,22 +45,27 @@
+ %# those contributions and any derivatives thereof.
+ %#
+ %# END BPS TAGGED BLOCK }}}
+-<& /Elements/SelectStatus, %ARGS &>
++<& /Elements/SelectStatus, %ARGS, Type => 'asset', Object => $AssetObj && $AssetObj->id ? $AssetObj : $CatalogObj, Lifecycles => \@Lifecycles &>
+ <%init>
+-if ($AssetObj and $AssetObj->Id) {
++my @Lifecycles;
++for my $id (keys %Catalogs) {
++    my $catalog = RT::Catalog->new($session{'CurrentUser'});
++    $catalog->Load($id);
++    push @Lifecycles, $catalog->LifecycleObj if $catalog->id;
++}
++
++if ($AssetObj && $AssetObj->id) {
+     $ARGS{DefaultValue} = 0;
+     $ARGS{Default} = $DECODED_ARGS->{Status} || $ARGS{Default};
+     $ARGS{Object} = $AssetObj;
+-} else {
+-    my $lifecycle = ($CatalogObj || "RT::Catalog")->LifecycleObj;
+-    if ( not $ARGS{DefaultValue} ){
+-        $ARGS{DefaultValue} = 0;
+-        $ARGS{Default} ||= $DECODED_ARGS->{Status} || $lifecycle->DefaultOnCreate;
+-    }
+-    $ARGS{Statuses} = [ $AssetObj ? $lifecycle->Transitions("") : $lifecycle->Valid ];
++} elsif ( $CatalogObj ) {
++    my $lifecycle = $CatalogObj->LifecycleObj;
++    $ARGS{DefaultValue} = 0;
++    $ARGS{Default} ||= $DECODED_ARGS->{Status} || $lifecycle->DefaultOnCreate;
+ }
+ </%init>
+ <%args>
+ $AssetObj   => undef
+ $CatalogObj => undef
++%Catalogs => ()
+ </%args>
+diff --git a/share/html/Elements/SelectStatus b/share/html/Elements/SelectStatus
+index 7eb678d..3183a90 100644
+--- a/share/html/Elements/SelectStatus
++++ b/share/html/Elements/SelectStatus
+@@ -94,7 +94,7 @@ if ( @Statuses ) {
+     }
+ 
+     if (not keys %statuses_by_lifecycle) {
+-        for my $lifecycle (map { RT::Lifecycle->Load($_) } RT::Lifecycle->List($Type)) {
++        for my $lifecycle (map { RT::Lifecycle->Load(Type => $Type, Name => $_) } RT::Lifecycle->List($Type)) {
+             $statuses_by_lifecycle{$lifecycle->Name} = [ $lifecycle->Valid ];
+         }
+     }
+diff --git a/share/html/Elements/Tabs b/share/html/Elements/Tabs
+index f4ac8a9..e672e3b 100644
+--- a/share/html/Elements/Tabs
++++ b/share/html/Elements/Tabs
+@@ -1107,7 +1107,7 @@ my $build_main_nav = sub {
+         PageMenu()->child( edit => title => loc('Edit'), path => '/Prefs/MyRT.html' );
+     }
+ 
+-    $m->callback( CallbackName => 'Privileged', Path => $request_path );
++    $m->callback( CallbackName => 'Privileged', Path => $request_path, ARGSRef => \%ARGS );
+ };
+ 
+ my $build_selfservice_nav = sub {
+@@ -1174,7 +1174,7 @@ my $build_selfservice_nav = sub {
+         }
+     }
+ 
+-    $m->callback( CallbackName => 'SelfService', Path => $request_path );
++    $m->callback( CallbackName => 'SelfService', Path => $request_path, ARGSRef => \%ARGS );
+ };
+ 
+ 

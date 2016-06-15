@@ -16,7 +16,12 @@ meta-spec:
 name: RT-Extension-AssetSQL
 no_index:
   directory:
+    - etc
+    - html
     - inc
+    - static
+  package:
+    - RT::Assets
 requires:
   perl: 5.10.1
 resources:
