@@ -1,41 +1,5 @@
-diff --git a/share/html/Elements/CollectionList b/share/html/Elements/CollectionList
-index 5325b2e..fd8c6e6 100644
---- a/share/html/Elements/CollectionList
-+++ b/share/html/Elements/CollectionList
-@@ -70,7 +70,7 @@ if ( $Rows ) {
- 
- # XXX: ->{'order_by'} is hacky, but there is no way to check if
- # collection is ordered or not
--if ( @OrderBy && ($AllowSorting || !$Collection->{'order_by'}) ) {
-+if ( @OrderBy && ($AllowSorting || $PreferOrderBy || !$Collection->{'order_by'}) ) {
-     if ( $OrderBy[0] =~ /\|/ ) {
-         @OrderBy = split /\|/, $OrderBy[0];
-         @Order = split /\|/,$Order[0];
-@@ -203,7 +203,8 @@ $Title         => loc('Ticket Search')
- $BaseURL       => RT->Config->Get('WebPath') . $m->request_comp->path .'?'
- @PassArguments => qw( Query Format Rows Page Order OrderBy)
- 
--$AllowSorting   => 0
-+$AllowSorting   => 0  # Make headers in table links that will resort results
-+$PreferOrderBy  => 0  # Prefer the passed-in @OrderBy to the collection default
- $ShowNavigation => 1
- $ShowHeader     => 1
- $ShowEmpty      => 0
-diff --git a/share/html/Elements/ShowSearch b/share/html/Elements/ShowSearch
-index c154bca..1483b4a 100644
---- a/share/html/Elements/ShowSearch
-+++ b/share/html/Elements/ShowSearch
-@@ -51,7 +51,7 @@
-     titleright => $customize ? loc('Edit') : '',
-     titleright_href => $customize,
-     hideable => $hideable &>
--<& $query_display_component, hideable => $hideable, %$ProcessedSearchArg, ShowNavigation => 0, Class => 'RT::Tickets', HasResults => $HasResults &>
-+<& $query_display_component, hideable => $hideable, %$ProcessedSearchArg, ShowNavigation => 0, Class => 'RT::Tickets', HasResults => $HasResults, PreferOrderBy => 1 &>
- </&>
- <%init>
- my $search;
 diff --git a/lib/RT/Assets.pm b/lib/RT/Assets.pm
-index b52308a..e05a7ae 100644
+index 51a8527..c34d650 100644
 --- a/lib/RT/Assets.pm
 +++ b/lib/RT/Assets.pm
 @@ -241,7 +241,7 @@ sub OrderByCols {
@@ -48,7 +12,7 @@ index b52308a..e05a7ae 100644
              my $cf = RT::CustomField->new( $self->CurrentUser );
              $cf->LoadByNameAndCatalog(
 diff --git a/share/html/Asset/Elements/AssetSearchBasics b/share/html/Asset/Elements/AssetSearchBasics
-index de9c35b..9557c8c 100644
+index c07988b..b7b647a 100644
 --- a/share/html/Asset/Elements/AssetSearchBasics
 +++ b/share/html/Asset/Elements/AssetSearchBasics
 @@ -54,7 +54,7 @@
@@ -61,7 +25,7 @@ index de9c35b..9557c8c 100644
  </td></tr>
  <tr class="asset-name"><td class="label"><label for="Name"><&|/l&>Name</&></label></td>
 diff --git a/share/html/Asset/Elements/SelectCatalog b/share/html/Asset/Elements/SelectCatalog
-index aa5d5fc..8c65e46 100644
+index bba70e5..11b4adb 100644
 --- a/share/html/Asset/Elements/SelectCatalog
 +++ b/share/html/Asset/Elements/SelectCatalog
 @@ -48,7 +48,7 @@
@@ -82,7 +46,7 @@ index aa5d5fc..8c65e46 100644
  <%init>
  my $catalog_obj = LoadDefaultCatalog($Default || '');
 diff --git a/share/html/Asset/Elements/SelectStatus b/share/html/Asset/Elements/SelectStatus
-index ef3e826..99717da 100644
+index c5e4ae1..135a9c7 100644
 --- a/share/html/Asset/Elements/SelectStatus
 +++ b/share/html/Asset/Elements/SelectStatus
 @@ -45,22 +45,27 @@
@@ -123,7 +87,7 @@ index ef3e826..99717da 100644
 +%Catalogs => ()
  </%args>
 diff --git a/share/html/Asset/Search/index.html b/share/html/Asset/Search/index.html
-index f1ebfa5..903ceb4 100644
+index 80ada79..39e5da8 100644
 --- a/share/html/Asset/Search/index.html
 +++ b/share/html/Asset/Search/index.html
 @@ -58,6 +58,7 @@ my $title = ( $ARGS{'SearchAssets'} or $ARGS{q} ) ?
@@ -134,8 +98,42 @@ index f1ebfa5..903ceb4 100644
  </%init>
  <& /Elements/Header, Title => $title &>
  <& /Elements/Tabs &>
+diff --git a/share/html/Elements/CollectionList b/share/html/Elements/CollectionList
+index 99a2f64..eb0ff8f 100644
+--- a/share/html/Elements/CollectionList
++++ b/share/html/Elements/CollectionList
+@@ -50,6 +50,10 @@ if (!$Collection && $Class eq 'RT::Tickets') {
+     $Collection = RT::Tickets->new( $session{'CurrentUser'} );
+     $Collection->FromSQL($Query);
+ }
++elsif (!$Collection && $Class eq 'RT::Assets') {
++    $Collection = RT::Assets->new( $session{'CurrentUser'} );
++    $Collection->FromSQL($Query);
++}
+ 
+ $TotalFound = $Collection->CountAll() unless defined $TotalFound;
+ return '' if !$TotalFound && !$ShowEmpty;
+@@ -66,7 +70,7 @@ if ( $Rows ) {
+ 
+ # XXX: ->{'order_by'} is hacky, but there is no way to check if
+ # collection is ordered or not
+-if ( @OrderBy && ($AllowSorting || !$Collection->{'order_by'}) ) {
++if ( @OrderBy && ($AllowSorting || $PreferOrderBy || !$Collection->{'order_by'}) ) {
+     if ( $OrderBy[0] =~ /\|/ ) {
+         @OrderBy = split /\|/, $OrderBy[0];
+         @Order = split /\|/,$Order[0];
+@@ -197,7 +201,8 @@ $Title         => loc('Ticket Search')
+ $BaseURL       => RT->Config->Get('WebPath') . $m->request_comp->path .'?'
+ @PassArguments => qw( Query Format Rows Page Order OrderBy)
+ 
+-$AllowSorting   => 0
++$AllowSorting   => 0  # Make headers in table links that will resort results
++$PreferOrderBy  => 0  # Prefer the passed-in @OrderBy to the collection default
+ $ShowNavigation => 1
+ $ShowHeader     => 1
+ $ShowEmpty      => 0
 diff --git a/share/html/Elements/SelectStatus b/share/html/Elements/SelectStatus
-index 7eb678d..3183a90 100644
+index e29e7cf..3820033 100644
 --- a/share/html/Elements/SelectStatus
 +++ b/share/html/Elements/SelectStatus
 @@ -94,7 +94,7 @@ if ( @Statuses ) {
@@ -147,11 +145,39 @@ index 7eb678d..3183a90 100644
              $statuses_by_lifecycle{$lifecycle->Name} = [ $lifecycle->Valid ];
          }
      }
+diff --git a/share/html/Elements/ShowSearch b/share/html/Elements/ShowSearch
+index 52e628b..55d8dc8 100644
+--- a/share/html/Elements/ShowSearch
++++ b/share/html/Elements/ShowSearch
+@@ -51,7 +51,7 @@
+     titleright => $customize ? loc('Edit') : '',
+     titleright_href => $customize,
+     hideable => $hideable &>
+-<& $query_display_component, hideable => $hideable, %$ProcessedSearchArg, ShowNavigation => 0, Class => 'RT::Tickets' &>
++<& $query_display_component, hideable => $hideable, %$ProcessedSearchArg, ShowNavigation => 0, Class => $SearchArg && ($SearchArg->{SearchType}||'') eq 'Asset' ? 'RT::Assets' : 'RT::Tickets', PreferOrderBy => 1 &>
+ </&>
+ <%init>
+ my $search;
+@@ -75,7 +75,13 @@ if ($SavedSearch) {
+     }
+     $SearchArg->{'SavedSearchId'} ||= $SavedSearch;
+     $SearchArg->{'SearchType'} ||= 'Ticket';
+-    if ( $SearchArg->{SearchType} ne 'Ticket' ) {
++    if ( $SearchArg->{SearchType} eq 'Asset' ) {
++        $query_link_url = RT->Config->Get('WebPath') . "/Asset/Search/Results.html";
++        $customize = RT->Config->Get('WebPath') . '/Asset/Search/Build.html?'
++            . $m->comp( '/Elements/QueryString',
++            SavedSearchLoad => $SavedSearch );
++    }
++    elsif ( $SearchArg->{SearchType} ne 'Ticket' ) {
+ 
+         # XXX: dispatch to different handler here
+         $query_display_component
 diff --git a/share/html/Elements/Tabs b/share/html/Elements/Tabs
-index f4ac8a9..e672e3b 100644
+index 2ee374e..7aea539 100644
 --- a/share/html/Elements/Tabs
 +++ b/share/html/Elements/Tabs
-@@ -1107,7 +1107,7 @@ my $build_main_nav = sub {
+@@ -1105,7 +1105,7 @@ my $build_main_nav = sub {
          PageMenu()->child( edit => title => loc('Edit'), path => '/Prefs/MyRT.html' );
      }
  
@@ -160,7 +186,7 @@ index f4ac8a9..e672e3b 100644
  };
  
  my $build_selfservice_nav = sub {
-@@ -1174,7 +1174,7 @@ my $build_selfservice_nav = sub {
+@@ -1172,7 +1172,7 @@ my $build_selfservice_nav = sub {
          }
      }
  
@@ -170,7 +196,7 @@ index f4ac8a9..e672e3b 100644
  
  
 diff --git a/share/html/Search/Elements/EditFormat b/share/html/Search/Elements/EditFormat
-index 4e2bfd8..4c305d2 100644
+index 2d6f3c0..328d40f 100644
 --- a/share/html/Search/Elements/EditFormat
 +++ b/share/html/Search/Elements/EditFormat
 @@ -97,10 +97,12 @@ jQuery( function() {

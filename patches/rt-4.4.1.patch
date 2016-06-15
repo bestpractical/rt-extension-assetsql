@@ -1,0 +1,220 @@
+diff --git a/lib/RT/Assets.pm b/lib/RT/Assets.pm
+index b52308a..e05a7ae 100644
+--- a/lib/RT/Assets.pm
++++ b/lib/RT/Assets.pm
+@@ -241,7 +241,7 @@ sub OrderByCols {
+     my $class = $self->_RoleGroupClass;
+ 
+     for my $row (@_) {
+-        if ($row->{FIELD} =~ /^CF\.(?:\{(.*)\}|(.*))$/) {
++        if ($row->{FIELD} =~ /^(?:CF|CustomField)\.(?:\{(.*)\}|(.*))$/) {
+             my $name = $1 || $2;
+             my $cf = RT::CustomField->new( $self->CurrentUser );
+             $cf->LoadByNameAndCatalog(
+diff --git a/share/html/Asset/Elements/AssetSearchBasics b/share/html/Asset/Elements/AssetSearchBasics
+index de9c35b..9557c8c 100644
+--- a/share/html/Asset/Elements/AssetSearchBasics
++++ b/share/html/Asset/Elements/AssetSearchBasics
+@@ -54,7 +54,7 @@
+ </td></tr>
+ <tr class="asset-status"><td class="label"><label for="Status"><&|/l&>Status</&></label></td>
+     <td class="value" colspan="3">
+-<& /Asset/Elements/SelectStatus, Name => 'Status', CatalogObj => $CatalogObj, DefaultValue => 1,
++<& /Asset/Elements/SelectStatus, Name => 'Status', Catalogs => { $CatalogObj->id => 1 }, DefaultValue => 1,
+        Default => ($ARGS{'Status'} || '') &>
+ </td></tr>
+ <tr class="asset-name"><td class="label"><label for="Name"><&|/l&>Name</&></label></td>
+diff --git a/share/html/Asset/Elements/SelectCatalog b/share/html/Asset/Elements/SelectCatalog
+index aa5d5fc..8c65e46 100644
+--- a/share/html/Asset/Elements/SelectCatalog
++++ b/share/html/Asset/Elements/SelectCatalog
+@@ -48,7 +48,7 @@
+ <& /Elements/SelectObject,
+     Name           => "Catalog",
+     ShowAll        => $ShowAll,
+-    ShowNullOption => 0,
++    ShowNullOption => $ShowNullOption,
+     CheckRight     => "CreateAsset",
+     %ARGS,
+     ObjectType     => "Catalog",
+@@ -59,6 +59,7 @@
+ $ShowAll => 0
+ $Default => undef
+ $UpdateSession => 1
++$ShowNullOption => 0
+ </%args>
+ <%init>
+ my $catalog_obj = LoadDefaultCatalog($Default || '');
+diff --git a/share/html/Asset/Elements/SelectStatus b/share/html/Asset/Elements/SelectStatus
+index ef3e826..99717da 100644
+--- a/share/html/Asset/Elements/SelectStatus
++++ b/share/html/Asset/Elements/SelectStatus
+@@ -45,22 +45,27 @@
+ %# those contributions and any derivatives thereof.
+ %#
+ %# END BPS TAGGED BLOCK }}}
+-<& /Elements/SelectStatus, %ARGS &>
++<& /Elements/SelectStatus, %ARGS, Type => 'asset', Object => $AssetObj && $AssetObj->id ? $AssetObj : $CatalogObj, Lifecycles => \@Lifecycles &>
+ <%init>
+-if ($AssetObj and $AssetObj->Id) {
++my @Lifecycles;
++for my $id (keys %Catalogs) {
++    my $catalog = RT::Catalog->new($session{'CurrentUser'});
++    $catalog->Load($id);
++    push @Lifecycles, $catalog->LifecycleObj if $catalog->id;
++}
++
++if ($AssetObj && $AssetObj->id) {
+     $ARGS{DefaultValue} = 0;
+     $ARGS{Default} = $DECODED_ARGS->{Status} || $ARGS{Default};
+     $ARGS{Object} = $AssetObj;
+-} else {
+-    my $lifecycle = ($CatalogObj || "RT::Catalog")->LifecycleObj;
+-    if ( not $ARGS{DefaultValue} ){
+-        $ARGS{DefaultValue} = 0;
+-        $ARGS{Default} ||= $DECODED_ARGS->{Status} || $lifecycle->DefaultOnCreate;
+-    }
+-    $ARGS{Statuses} = [ $AssetObj ? $lifecycle->Transitions("") : $lifecycle->Valid ];
++} elsif ( $CatalogObj ) {
++    my $lifecycle = $CatalogObj->LifecycleObj;
++    $ARGS{DefaultValue} = 0;
++    $ARGS{Default} ||= $DECODED_ARGS->{Status} || $lifecycle->DefaultOnCreate;
+ }
+ </%init>
+ <%args>
+ $AssetObj   => undef
+ $CatalogObj => undef
++%Catalogs => ()
+ </%args>
+diff --git a/share/html/Asset/Search/index.html b/share/html/Asset/Search/index.html
+index f1ebfa5..903ceb4 100644
+--- a/share/html/Asset/Search/index.html
++++ b/share/html/Asset/Search/index.html
+@@ -58,6 +58,7 @@ my $title = ( $ARGS{'SearchAssets'} or $ARGS{q} ) ?
+       loc("Found [quant,_1,asset,assets]",$assets->Count)
+     : loc("Assets");
+ 
++$m->callback( CallbackName => 'Initial', Assets => $assets, ARGSRef => \%ARGS);
+ </%init>
+ <& /Elements/Header, Title => $title &>
+ <& /Elements/Tabs &>
+diff --git a/share/html/Elements/CollectionList b/share/html/Elements/CollectionList
+index 5325b2e..08ce079 100644
+--- a/share/html/Elements/CollectionList
++++ b/share/html/Elements/CollectionList
+@@ -50,6 +50,10 @@ if (!$Collection && $Class eq 'RT::Tickets') {
+     $Collection = RT::Tickets->new( $session{'CurrentUser'} );
+     $Collection->FromSQL($Query);
+ }
++elsif (!$Collection && $Class eq 'RT::Assets') {
++    $Collection = RT::Assets->new( $session{'CurrentUser'} );
++    $Collection->FromSQL($Query);
++}
+ 
+ # flip HasResults from undef to 0 to indicate there was a search, so
+ # dashboard mail can be suppressed if there are no results
+@@ -70,7 +74,7 @@ if ( $Rows ) {
+ 
+ # XXX: ->{'order_by'} is hacky, but there is no way to check if
+ # collection is ordered or not
+-if ( @OrderBy && ($AllowSorting || !$Collection->{'order_by'}) ) {
++if ( @OrderBy && ($AllowSorting || $PreferOrderBy || !$Collection->{'order_by'}) ) {
+     if ( $OrderBy[0] =~ /\|/ ) {
+         @OrderBy = split /\|/, $OrderBy[0];
+         @Order = split /\|/,$Order[0];
+@@ -203,7 +207,8 @@ $Title         => loc('Ticket Search')
+ $BaseURL       => RT->Config->Get('WebPath') . $m->request_comp->path .'?'
+ @PassArguments => qw( Query Format Rows Page Order OrderBy)
+ 
+-$AllowSorting   => 0
++$AllowSorting   => 0  # Make headers in table links that will resort results
++$PreferOrderBy  => 0  # Prefer the passed-in @OrderBy to the collection default
+ $ShowNavigation => 1
+ $ShowHeader     => 1
+ $ShowEmpty      => 0
+diff --git a/share/html/Elements/SelectStatus b/share/html/Elements/SelectStatus
+index 7eb678d..3183a90 100644
+--- a/share/html/Elements/SelectStatus
++++ b/share/html/Elements/SelectStatus
+@@ -94,7 +94,7 @@ if ( @Statuses ) {
+     }
+ 
+     if (not keys %statuses_by_lifecycle) {
+-        for my $lifecycle (map { RT::Lifecycle->Load($_) } RT::Lifecycle->List($Type)) {
++        for my $lifecycle (map { RT::Lifecycle->Load(Type => $Type, Name => $_) } RT::Lifecycle->List($Type)) {
+             $statuses_by_lifecycle{$lifecycle->Name} = [ $lifecycle->Valid ];
+         }
+     }
+diff --git a/share/html/Elements/ShowSearch b/share/html/Elements/ShowSearch
+index c154bca..93e0d99 100644
+--- a/share/html/Elements/ShowSearch
++++ b/share/html/Elements/ShowSearch
+@@ -51,7 +51,7 @@
+     titleright => $customize ? loc('Edit') : '',
+     titleright_href => $customize,
+     hideable => $hideable &>
+-<& $query_display_component, hideable => $hideable, %$ProcessedSearchArg, ShowNavigation => 0, Class => 'RT::Tickets', HasResults => $HasResults &>
++<& $query_display_component, hideable => $hideable, %$ProcessedSearchArg, ShowNavigation => 0, Class => $SearchArg && ($SearchArg->{SearchType}||'') eq 'Asset' ? 'RT::Assets' : 'RT::Tickets', HasResults => $HasResults, PreferOrderBy => 1 &>
+ </&>
+ <%init>
+ my $search;
+@@ -75,7 +75,13 @@ if ($SavedSearch) {
+     }
+     $SearchArg->{'SavedSearchId'} ||= $SavedSearch;
+     $SearchArg->{'SearchType'} ||= 'Ticket';
+-    if ( $SearchArg->{SearchType} ne 'Ticket' ) {
++    if ( $SearchArg->{SearchType} eq 'Asset' ) {
++        $query_link_url = RT->Config->Get('WebPath') . "/Asset/Search/Results.html";
++        $customize = RT->Config->Get('WebPath') . '/Asset/Search/Build.html?'
++            . $m->comp( '/Elements/QueryString',
++            SavedSearchLoad => $SavedSearch );
++    }
++    elsif ( $SearchArg->{SearchType} ne 'Ticket' ) {
+ 
+         # XXX: dispatch to different handler here
+         $query_display_component
+diff --git a/share/html/Elements/Tabs b/share/html/Elements/Tabs
+index 866e8f2..b819a44 100644
+--- a/share/html/Elements/Tabs
++++ b/share/html/Elements/Tabs
+@@ -1105,7 +1105,7 @@ my $build_main_nav = sub {
+         PageMenu()->child( edit => title => loc('Edit'), path => '/Prefs/MyRT.html' );
+     }
+ 
+-    $m->callback( CallbackName => 'Privileged', Path => $request_path );
++    $m->callback( CallbackName => 'Privileged', Path => $request_path, ARGSRef => \%ARGS );
+ };
+ 
+ my $build_selfservice_nav = sub {
+@@ -1172,7 +1172,7 @@ my $build_selfservice_nav = sub {
+         }
+     }
+ 
+-    $m->callback( CallbackName => 'SelfService', Path => $request_path );
++    $m->callback( CallbackName => 'SelfService', Path => $request_path, ARGSRef => \%ARGS );
+ };
+ 
+ 
+diff --git a/share/html/Search/Elements/EditFormat b/share/html/Search/Elements/EditFormat
+index 4e2bfd8..4c305d2 100644
+--- a/share/html/Search/Elements/EditFormat
++++ b/share/html/Search/Elements/EditFormat
+@@ -97,10 +97,12 @@ jQuery( function() {
+ <select name="Link">
+ <option value="None">-</option>
+ <option value="Display"><&|/l&>Display</&></option>
++% if ($IncludeTicketLinks) {
+ <option value="Take"><&|/l&>Take</&></option>
+ <option value="Respond"><&|/l&>Respond</&></option>
+ <option value="Comment"><&|/l&>Comment</&></option>
+ <option value="Resolve"><&|/l&>Resolve</&></option>
++% }
+ </select>
+ </span>
+ </div>
+@@ -159,4 +161,5 @@ $selected{$_}++ for grep {defined} @{ $selected };
+ <%ARGS>
+ $CurrentFormat => undef
+ $AvailableColumns => undef
++$IncludeTicketLinks => 1
+ </%ARGS>
