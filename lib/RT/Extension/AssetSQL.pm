@@ -25,7 +25,7 @@ sub RT::Interface::Web::QueryBuilder::Tree::GetReferencedCatalogs {
             return unless $clause->{ Key } eq 'Catalog';
             return unless $clause->{ Op } eq '=';
 
-            $catalogs->{ $clause->{ RawValue } } = 1;
+            $catalogs->{ $clause->{ Value } } = 1;
         }
     );
 
@@ -56,33 +56,20 @@ sub RT::Interface::Web::QueryBuilder::Tree::ParseAssetSQL {
     $callback{ 'EntryAggregator' } = sub { $node->setNodeValue( $_[ 0 ] ) };
     $callback{ 'Condition' } = sub {
         my ( $key, $op, $value ) = @_;
-        my $rawvalue = $value;
 
-        my ( $main_key ) = split /[.]/, $key;
+        my ($main_key, $subkey) = split /[.]/, $key, 2;
 
-        my $class;
-        if ( exists $lcfield{ lc $main_key } ) {
-            $key =~ s/^[^.]+/ $lcfield{ lc $main_key } /e;
-            ( $main_key ) = split /[.]/, $key;    # make the case right
-            $class = $field{ $main_key }->[ 0 ];
-        }
-        unless ( $class ) {
+        unless( $lcfield{ lc $main_key} ) {
             push @results, [ $args{ 'CurrentUser' }->loc( "Unknown field: [_1]", $key ), -1 ];
         }
+        $main_key = $lcfield{ lc $main_key };
 
-        if ( lc $op eq 'is' || lc $op eq 'is not' ) {
-            $value = 'NULL';                      # just fix possible mistakes here
-        }
-        elsif ( $value !~ /^[+-]?[0-9]+$/ ) {
-            $value =~ s/(['\\])/\\$1/g;
-            $value = "'$value'";
-        }
+        # Hardcode value for IS / IS NOT
+        $value = 'NULL' if $op =~ /^IS( NOT)?$/i;
 
-        if ( $key =~ s/(['\\])/\\$1/g or $key =~ /[^{}\w\.]/ ) {
-            $key = "'$key'";
-        }
-
-        my $clause = { Key => $key, Op => $op, Value => $value, RawValue => $rawvalue };
+        my $clause = { Key => $main_key, Subkey => $subkey,
+                       Meta => $field{ $main_key },
+                       Op => $op, Value => $value };
         $node->addChild( RT::Interface::Web::QueryBuilder::Tree->new( $clause ) );
     };
     $callback{ 'Error' } = sub { push @results, @_ };
