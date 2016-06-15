@@ -17,6 +17,7 @@
 my @types = qw(Owner HeldBy Contact);
 my @subtypes = @{ $RT::Assets::SEARCHABLE_SUBFIELDS{'User'} };
 
+$m->callback(Types => \@types, Subtypes => \@subtypes);
 </%INIT>
 <%ARGS>
 $AllowNull => 1
