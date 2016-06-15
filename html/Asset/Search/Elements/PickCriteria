@@ -11,7 +11,7 @@
 <tr class="separator"><td colspan="3"><hr /></td></tr>
 <tr>
 <td class="label"><&|/l&>Aggregator</&></td>
-<td class="operator" colspan="2"><& SelectAndOr, Name => "AndOr" &></td>
+<td class="operator" colspan="2"><& /Search/Elements/SelectAndOr, Name => "AndOr" &></td>
 
 </tr>
 

@@ -37,7 +37,7 @@
 
 
 <div id="editquery">
-<& Elements/EditQuery,
+<& /Search/Elements/EditQuery,
     %ARGS,
     actions => \@actions,
     optionlist => $optionlist,
@@ -45,7 +45,7 @@
     &>
 </div>
 <div id="editsearches">
-    <& Elements/EditSearches, %saved_search, CurrentSearch => \%query &>
+    <& /Search/Elements/EditSearches, %saved_search, Type => 'Asset', CurrentSearch => \%query &>
 </div>
 
 <span id="display-options">
@@ -64,13 +64,13 @@ use RT::Interface::Web::QueryBuilder::Tree;
 
 my $title = loc("Asset Query Builder");
 
-my %query;
+my %query = (Type => 'Asset');
 for( qw(Query Format OrderBy Order RowsPerPage) ) {
     $query{$_} = $ARGS{$_};
 }
 
-my %saved_search;
-my @actions = $m->comp( 'Elements/EditSearches:Init', %ARGS, Query => \%query, SavedSearch => \%saved_search);
+my %saved_search = (Type => 'Asset');
+my @actions = $m->comp( '/Search/Elements/EditSearches:Init', %ARGS, Type => 'Asset', Query => \%query, SavedSearch => \%saved_search);
 
 if ( $NewQuery ) {
 
@@ -208,7 +208,7 @@ foreach my $arg ( keys %ARGS ) {
 }
 
 
-push @actions, $m->comp('Elements/EditQuery:Process',
+push @actions, $m->comp('/Search/Elements/EditQuery:Process',
     %ARGS,
     Tree     => $tree,
     Selected => \@current_values,
@@ -238,7 +238,7 @@ my ( $AvailableColumns, $CurrentFormat );
 
 
 # if we're asked to save the current search, save it
-push @actions, $m->comp( 'Elements/EditSearches:Save', %ARGS, Query => \%query, SavedSearch => \%saved_search);
+push @actions, $m->comp( '/Search/Elements/EditSearches:Save', %ARGS, Type => 'Asset', Query => \%query, SavedSearch => \%saved_search);
 
 # Populate the "query" context with saved search data
 

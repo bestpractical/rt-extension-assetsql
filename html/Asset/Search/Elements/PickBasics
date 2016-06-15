@@ -1,5 +1,5 @@
 % foreach( @lines ) {
-<& ConditionRow, Condition => $_ &>
+<& /Search/Elements/ConditionRow, Condition => $_ &>
 % }
 <%INIT>
 
@@ -63,7 +63,7 @@ my @lines = (
         Name => 'Watcher',
         Field => {
             Type => 'component',
-            Path => 'SelectPersonType',
+            Path => '/Asset/Search/Elements/SelectPersonType',
             Arguments => { Default => 'Owner' },
         },
         Op => {
@@ -76,7 +76,7 @@ my @lines = (
         Name => 'WatcherGroup',
         Field => {
             Type => 'component',
-            Path => 'SelectPersonType',
+            Path => '/Asset/Search/Elements/SelectPersonType',
             Arguments => { Default => 'Owner', Suffix => 'Group' },
         },
         Op => {
@@ -103,7 +103,10 @@ my @lines = (
     },
     {
         Name => 'Links',
-        Field => { Type => 'component', Path => 'SelectLinks' },
+        Field => {
+            Type => 'component',
+            Path => '/Asset/Search/Elements/SelectLinks',
+        },
         Op => {
             Type => 'component',
             Path => '/Elements/SelectBoolean',

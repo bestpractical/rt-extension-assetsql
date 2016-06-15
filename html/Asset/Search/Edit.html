@@ -1,7 +1,7 @@
 <& /Elements/Header, Title => $title&>
 <& /Elements/Tabs &>
 
-<& Elements/NewListActions, actions => \@actions &>
+<& /Search/Elements/NewListActions, actions => \@actions &>
 
 <form method="post" action="Build.html" id="BuildQueryAdvanced" name="BuildQueryAdvanced">
 <input type="hidden" class="hidden" name="SavedSearchId" value="<% $SavedSearchId %>" />

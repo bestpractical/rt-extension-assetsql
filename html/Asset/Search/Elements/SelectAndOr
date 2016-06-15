@@ -1,6 +1,0 @@
-<label><input type="radio" class="radio" name="<%$Name%>" checked="checked" value="AND" /><&|/l&>AND</&></label>
-<label><input type="radio" class="radio" name="<%$Name%>" value="OR" /><&|/l&>OR</&></label>
-
-<%ARGS>
-$Name => "Operator"
-</%ARGS>
