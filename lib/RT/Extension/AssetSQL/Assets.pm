@@ -475,6 +475,8 @@ our %FIELD_METADATA = (
     CustomFieldValue => [ 'CUSTOMFIELD' => 'Asset' ], #loc_left_pair
     CustomField      => [ 'CUSTOMFIELD' => 'Asset' ], #loc_left_pair
     CF               => [ 'CUSTOMFIELD' => 'Asset' ], #loc_left_pair
+
+    Lifecycle        => [ 'LIFECYCLE' ], #loc_left_pair
 );
 
 # Lower Case version of FIELDS, for case insensitivity
@@ -498,8 +500,8 @@ our %dispatch = (
     WATCHERFIELD    => \&_WatcherLimit,
     MEMBERSHIPFIELD => \&_WatcherMembershipLimit,
     CUSTOMFIELD     => \&_CustomFieldLimit,
+    LIFECYCLE       => \&_LifecycleLimit,
 #    HASATTRIBUTE    => \&_HasAttributeLimit,
-#    LIFECYCLE       => \&_LifecycleLimit,
 );
 
 # Default EntryAggregator per type
@@ -1195,6 +1197,26 @@ sub _CustomFieldJoinByName {
         QUOTEVALUE      => 0,
     );
     return ($ocfvalias, $CFs, $ocfalias);
+}
+
+sub _LifecycleLimit {
+    my ( $self, $field, $op, $value, %rest ) = @_;
+
+    die "Invalid Operator $op for $field" if $op =~ /^(IS|IS NOT)$/io;
+    my $catalog = $self->{_sql_aliases}{catalogs} ||= $_[0]->Join(
+        ALIAS1 => 'main',
+        FIELD1 => 'Catalog',
+        TABLE2 => 'Catalogs',
+        FIELD2 => 'id',
+    );
+
+    $self->Limit(
+        ALIAS    => $catalog,
+        FIELD    => 'Lifecycle',
+        OPERATOR => $op,
+        VALUE    => $value,
+        %rest,
+    );
 }
 
 =head2 PrepForSerialization
