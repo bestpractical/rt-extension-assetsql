@@ -549,20 +549,6 @@ my %DefaultEA = (
 
 sub FIELDS     { return \%FIELD_METADATA }
 
-our @SORTFIELDS = qw(id Name Status Catalog Owner Created LastUpdated );
-
-=head2 SortFields
-
-Returns the list of fields that lists of assets can easily be sorted by
-
-=cut
-
-sub SortFields {
-    my $self = shift;
-    return (@SORTFIELDS);
-}
-
-
 # BEGIN SQL STUFF *********************************
 
 
