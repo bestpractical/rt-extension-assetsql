@@ -133,7 +133,7 @@ if ( $ARGS{Update} ) {
             AttributesRef   => \@attributes,
             ARGSRef         => \%basics,
         );
-        push @tmp_res, ProcessRoleMembers( $asset => %ARGS );
+        push @tmp_res, ProcessAssetRoleMembers( $asset => %ARGS );
         push @tmp_res, ProcessObjectCustomFieldUpdates( Object => $asset, ARGSRef => \%ARGS );
         push @tmp_res, ProcessRecordLinks( RecordObj => $asset, RecordId => 'Asset', ARGSRef => \%ARGS );
         push @tmp_res, ProcessRecordBulkCustomFields( RecordObj => $asset, ARGSRef => \%ARGS );
