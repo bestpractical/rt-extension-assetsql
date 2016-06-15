@@ -1247,38 +1247,19 @@ sub _parser {
     my ($self,$string) = @_;
     my $ea = '';
 
-    my %sub_tree;
-    my $depth = 0;
-
     my %callback;
     $callback{'OpenParen'} = sub {
       $self->_OpenParen;
-      $depth++;
-      push @$_, '(' foreach values %sub_tree;
     };
     $callback{'CloseParen'} = sub {
       $self->_CloseParen;
-      $depth--;
-      foreach my $list ( values %sub_tree ) {
-          if ( $list->[-1] eq '(' ) {
-              pop @$list;
-              pop @$list if $list->[-1] =~ /^(?:AND|OR)$/i;
-          }
-          else {
-              pop @$list while $list->[-2] ne '(';
-              $list->[-1] = pop @$list;
-          }
-      }
     };
     $callback{'EntryAggregator'} = sub {
       $ea = $_[0] || '';
-      push @$_, $ea foreach grep @$_ && $_->[-1] ne '(', values %sub_tree;
     };
     $callback{'Condition'} = sub {
         my ($key, $op, $value) = @_;
 
-        my $negative_op = ($op eq '!=' || $op =~ /\bNOT\b/i);
-        my $null_op = ( 'is not' eq lc($op) || 'is' eq lc($op) );
         # key has dot then it's compound variant and we have subkey
         my $subkey = '';
         ($key, $subkey) = ($1, $2) if $key =~ /^([^\.]+)\.(.+)$/;
@@ -1300,28 +1281,12 @@ sub _parser {
         }
         my $sub = $dispatch{ $class };
 
-        my @res; my $bundle_with;
-        if ( $class eq 'WATCHERFIELD' && $key ne 'Owner' && !$negative_op && (!$null_op || $subkey) ) {
-            if ( !$sub_tree{$key} ) {
-              $sub_tree{$key} = [ ('(')x$depth, \@res ];
-            } else {
-              $bundle_with = $self->_check_bundling_possibility( $string, @{ $sub_tree{$key} } );
-              if ( $sub_tree{$key}[-1] eq '(' ) {
-                    push @{ $sub_tree{$key} }, \@res;
-              }
-            }
-        }
-
-        # Remove our aggregator from subtrees where our condition didn't get added
-        pop @$_ foreach grep @$_ && $_->[-1] =~ /^(?:AND|OR)$/i, values %sub_tree;
-
         # A reference to @res may be pushed onto $sub_tree{$key} from
         # above, and we fill it here.
-        @res = $sub->( $self, $key, $op, $value,
+        $sub->( $self, $key, $op, $value,
                 SUBCLAUSE       => '',  # don't need anymore
                 ENTRYAGGREGATOR => $ea,
                 SUBKEY          => $subkey,
-                BUNDLE          => $bundle_with,
               );
         $ea = '';
     };
@@ -1537,29 +1502,6 @@ sub _ProcessRestrictions {
 
     $self->{'RecalcAssetLimits'} = 0;
 
-}
-
-sub _check_bundling_possibility {
-    my $self = shift;
-    my $string = shift;
-    my @list = reverse @_;
-    while (my $e = shift @list) {
-        next if $e eq '(';
-        if ( lc($e) eq 'and' ) {
-            return undef;
-        }
-        elsif ( lc($e) eq 'or' ) {
-            return shift @list;
-        }
-        else {
-            # should not happen
-            $RT::Logger->error(
-                "Joins optimization failed when parsing '$string'. It's bug in RT, contact Best Practical"
-            );
-            die "Internal error. Contact your system administrator.";
-        }
-    }
-    return undef;
 }
 
 1;
