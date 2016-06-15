@@ -245,7 +245,7 @@ if ( $ARGS{'DoSearch'} ) {
         %query,
         SavedSearchId => $saved_search{'Id'},
     );
-    RT::Interface::Web::Redirect(RT->Config->Get('WebURL') . '/Asset/Search/Results.html?' . $redir_query_string);
+    RT::Interface::Web::Redirect(RT->Config->Get('WebURL') . 'Asset/Search/Results.html?' . $redir_query_string);
     $m->abort;
 }
 
