@@ -2,5 +2,5 @@
 <& EditSort, %ARGS &>
 </&>
 <&| /Widgets/TitleBox, title => loc("Display Columns"), id => 'columns' &>
-<& EditFormat, %ARGS &>
+<& /Search/Elements/EditFormat, IncludeTicketLinks => 0, %ARGS &>
 </&>
