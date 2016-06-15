@@ -21,8 +21,8 @@ index 15b7b75..4234387 100644
      titleright => $customize ? loc('Edit') : '',
      titleright_href => $customize,
      hideable => $hideable &>
--<& $query_display_component, hideable => $hideable, %$ProcessedSearchArg, ShowNavigation => 0, Class => 'RT::Tickets', HasResults => $HasResults &>
-+<& $query_display_component, hideable => $hideable, %$ProcessedSearchArg, ShowNavigation => 0, Class => $SearchArg && $SearchArg->{SearchType} eq 'Asset' ? 'RT::Assets' : 'RT::Tickets', HasResults => $HasResults &>
+-<& $query_display_component, hideable => $hideable, %$ProcessedSearchArg, ShowNavigation => 0, Class => 'RT::Tickets', HasResults => $HasResults, PreferOrderBy => 1 &>
++<& $query_display_component, hideable => $hideable, %$ProcessedSearchArg, ShowNavigation => 0, Class => $SearchArg && $SearchArg->{SearchType} eq 'Asset' ? 'RT::Assets' : 'RT::Tickets', HasResults => $HasResults, PreferOrderBy => 1 &>
  </&>
  <%init>
  my $search;
