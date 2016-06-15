@@ -1,7 +1,7 @@
 <%ARGS>
 $Format => undef
 $Query => ''
-$OrderBy => 'id'
+$OrderBy => 'Name'
 $Order => 'ASC'
 $PreserveNewLines => 0
 </%ARGS>
