@@ -87,7 +87,8 @@ RT-Extension-AssetSQL - SQL search builder for Assets
 
 =head1 INSTALLATION
 
-RT-Extension-AssetSQL requires version RT 4.4.0 or later.
+RT-Extension-AssetSQL requires version RT 4.4.0 or later. Note that AssetSQL
+is incompatible with RT 4.2 running L<RT::Extension::Assets>.
 
 =over
 
