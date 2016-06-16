@@ -83,8 +83,6 @@ sub RT::Interface::Web::QueryBuilder::Tree::ParseAssetSQL {
 
 RT-Extension-AssetSQL - SQL search builder for Assets
 
-=cut
-
 =head1 INSTALLATION
 
 RT-Extension-AssetSQL requires version RT 4.4.0 or later. Note that AssetSQL
