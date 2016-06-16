@@ -41,6 +41,9 @@ my $deleted = create_asset(
     Name                       => 'deleted',
     Description                => "for making sure we don't search deleted",
     Catalog                    => 'Servers',
+    Owner                      => $shawn->PrincipalId,
+    Contact                    => $shawn->PrincipalId,
+    'CustomField-Manufacturer' => 'Dell',
 );
 my $ecaz = create_asset(
     Name                       => 'ecaz',
@@ -107,34 +110,6 @@ my $kaitain_id = $kaitain->id;
 my $morelax_id = $morelax->id;
 my $stilgar_id = $stilgar->id;
 my $ticket_id = $ticket->id;
-
-sub assetsql {
-    local $Test::Builder::Level = $Test::Builder::Level + 1;
-
-    my $sql = shift;
-    my @expected = @_;
-
-    my $count = scalar @expected;
-
-    my $assets = RT::Assets->new(RT->SystemUser);
-    $assets->FromSQL($sql);
-    $assets->OrderBy( FIELD => 'Name', ORDER => 'ASC' );
-
-    is($assets->Count, $count, "number of assets from [$sql]");
-    my $i = 0;
-    while (my $asset = $assets->Next) {
-        my $expected = shift @expected;
-        if (!$expected) {
-            fail("got more assets (" . $asset->Name . ") than expected from [$sql]");
-            next;
-        }
-        ++$i;
-        is($asset->Name, $expected->Name, "asset ($i/$count) from [$sql]");
-    }
-    while (my $expected = shift @expected) {
-        fail("got fewer assets than expected (" . $expected->Name . ") from [$sql]");
-    }
-}
 
 assetsql "id = 1" => $bloc;
 assetsql "id != 1" => $ecaz, $kaitain, $morelax, $stilgar;
