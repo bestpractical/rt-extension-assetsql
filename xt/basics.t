@@ -18,6 +18,17 @@ my $shawn = RT::User->new(RT->SystemUser);
 my ($ok, $msg) = $shawn->Create(Name => 'shawn', EmailAddress => 'shawn@bestpractical.com');
 ok($ok, $msg);
 
+my $sysadmins = RT::Group->new( RT->SystemUser );
+($ok, $msg) = $sysadmins->CreateUserDefinedGroup( Name => 'Sysadmins' );
+ok($ok, $msg);
+
+($ok, $msg) = $sysadmins->AddMember($shawn->PrincipalId);
+ok($ok, $msg);
+
+my $memberless = RT::Group->new( RT->SystemUser );
+($ok, $msg) = $memberless->CreateUserDefinedGroup( Name => 'Memberless' );
+ok($ok, $msg);
+
 my $bloc = create_asset(
     Name                       => 'bloc',
     Description                => "Shawn's BPS office media server",
@@ -177,8 +188,16 @@ assetsql "MemberOf = 'asset:$stilgar_id'" => ();
 assetsql "Owner.Name = 'shawn'" => $bloc, $ecaz, $kaitain, $stilgar;
 assetsql "Owner.EmailAddress LIKE 'bestpractical'" => $bloc, $ecaz, $kaitain, $stilgar;
 assetsql "Owner.Name = 'Nobody'" => $morelax;
+assetsql "Owner = '__CurrentUser__'" => ();
+assetsql "Owner != '__CurrentUser__'" => $bloc, $ecaz, $kaitain, $morelax, $stilgar;
+assetsql "OwnerGroup = 'Sysadmins'" => $bloc, $ecaz, $kaitain, $stilgar;
+assetsql "OwnerGroup = 'Memberless'" => ();
 
 assetsql "Contact.Name = 'shawn'" => $bloc, $ecaz, $stilgar;
+assetsql "Contact = '__CurrentUser__'" => ();
+assetsql "Contact != '__CurrentUser__'" => $bloc, $ecaz, $kaitain, $morelax, $stilgar;
+assetsql "ContactGroup = 'Sysadmins'" => $bloc, $ecaz, $stilgar;
+assetsql "ContactGroup = 'Memberless'" => ();
 
 assetsql "CustomField.{Manufacturer} = 'Apple'" => $ecaz, $kaitain, $stilgar;
 assetsql "CF.{Manufacturer} != 'Apple'" => $bloc, $morelax;
