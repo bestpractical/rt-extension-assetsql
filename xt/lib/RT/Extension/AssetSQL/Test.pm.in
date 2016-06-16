@@ -1,0 +1,29 @@
+use strict;
+use warnings;
+
+### after: use lib qw(@RT_LIB_PATH@);
+use lib qw(/opt/rt4/local/lib /opt/rt4/lib);
+
+package RT::Extension::AssetSQL::Test;
+use base 'RT::Test::Assets';
+
+our @EXPORT = @RT::Test::Assets::EXPORT;
+
+sub import {
+    my $class = shift;
+    my %args  = @_;
+
+    $args{'requires'} ||= [];
+    if ( $args{'testing'} ) {
+        unshift @{ $args{'requires'} }, 'RT::Extension::AssetSQL';
+    } else {
+        $args{'testing'} = 'RT::Extension::AssetSQL';
+    }
+
+    $class->SUPER::import( %args );
+
+    require RT::Extension::AssetSQL;
+    __PACKAGE__->export_to_level(1);
+}
+
+1;

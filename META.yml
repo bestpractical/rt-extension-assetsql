@@ -16,10 +16,10 @@ meta-spec:
 name: RT-Extension-AssetSQL
 no_index:
   directory:
-    - etc
     - html
     - inc
     - static
+    - xt
   package:
     - RT::Assets
 requires:

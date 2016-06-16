@@ -12,3 +12,4 @@ pod2htm*.tmp
 /MYMETA.*
 /t/tmp
 /xt/tmp
+/xt/lib/RT/Extension/AssetSQL/Test.pm
