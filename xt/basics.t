@@ -90,6 +90,13 @@ my $ticket = RT::Ticket->new(RT->SystemUser);
 ($ok, $msg) = $morelax->AddLink(Type => 'RefersTo', Target => $ticket->URI);
 ok($ok, $msg);
 
+my $bloc_id = $bloc->id;
+my $ecaz_id = $ecaz->id;
+my $kaitain_id = $kaitain->id;
+my $morelax_id = $morelax->id;
+my $stilgar_id = $stilgar->id;
+my $ticket_id = $ticket->id;
+
 sub assetsql {
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
@@ -162,10 +169,10 @@ assetsql "Lifecycle != 'default'" => $bloc, $ecaz, $kaitain, $morelax, $stilgar;
 
 assetsql "Linked IS NOT NULL" => $ecaz, $kaitain, $morelax, $stilgar;
 assetsql "Linked IS NULL" => $bloc;
-assetsql "RefersTo = 'asset:" . $kaitain->id . "'" => $ecaz;
-assetsql "RefersTo = " . $ticket->Id => $morelax;
-assetsql "HasMember = 'asset:" . $stilgar->id . "'" => $ecaz;
-assetsql "MemberOf = 'asset:" . $stilgar->id . "'" => ();
+assetsql "RefersTo = 'asset:$kaitain_id'" => $ecaz;
+assetsql "RefersTo = $ticket_id" => $morelax;
+assetsql "HasMember = 'asset:$stilgar_id'" => $ecaz;
+assetsql "MemberOf = 'asset:$stilgar_id'" => ();
 
 assetsql "Owner.Name = 'shawn'" => $bloc, $ecaz, $kaitain, $stilgar;
 assetsql "Owner.EmailAddress LIKE 'bestpractical'" => $bloc, $ecaz, $kaitain, $stilgar;
