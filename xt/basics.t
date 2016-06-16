@@ -118,75 +118,75 @@ sub assetsql {
     }
 }
 
-assetsql("id = 1" => $bloc);
-assetsql("id != 1" => $ecaz, $kaitain, $morelax, $stilgar);
-assetsql("id = 2" => ()); # deleted
-assetsql("id < 3" => $bloc);
-assetsql("id >= 3" => $ecaz, $kaitain, $morelax, $stilgar);
+assetsql "id = 1" => $bloc;
+assetsql "id != 1" => $ecaz, $kaitain, $morelax, $stilgar;
+assetsql "id = 2" => (); # deleted
+assetsql "id < 3" => $bloc;
+assetsql "id >= 3" => $ecaz, $kaitain, $morelax, $stilgar;
 
-assetsql("Name = 'ecaz'" => $ecaz);
-assetsql("Name != 'ecaz'" => $bloc, $kaitain, $morelax, $stilgar);
-assetsql("Name = 'no match'" => ());
-assetsql("Name != 'no match'" => $bloc, $ecaz, $kaitain, $morelax, $stilgar);
+assetsql "Name = 'ecaz'" => $ecaz;
+assetsql "Name != 'ecaz'" => $bloc, $kaitain, $morelax, $stilgar;
+assetsql "Name = 'no match'" => ();
+assetsql "Name != 'no match'" => $bloc, $ecaz, $kaitain, $morelax, $stilgar;
 
-assetsql("Status = 'new'" => $stilgar);
-assetsql("Status = 'allocated'" => ());
-assetsql("Status = 'in-use'" => $ecaz, $morelax);
-assetsql("Status = 'recycled'" => $kaitain);
-assetsql("Status = 'stolen'" => $bloc);
-assetsql("Status = 'deleted'" => ());
+assetsql "Status = 'new'" => $stilgar;
+assetsql "Status = 'allocated'" => ();
+assetsql "Status = 'in-use'" => $ecaz, $morelax;
+assetsql "Status = 'recycled'" => $kaitain;
+assetsql "Status = 'stolen'" => $bloc;
+assetsql "Status = 'deleted'" => ();
 
-assetsql("Status = '__Active__'" => $ecaz, $morelax, $stilgar);
-assetsql("Status != '__Inactive__'" => $ecaz, $morelax, $stilgar);
-assetsql("Status = '__Inactive__'" => $bloc, $kaitain);
-assetsql("Status != '__Active__'" => $bloc, $kaitain);
+assetsql "Status = '__Active__'" => $ecaz, $morelax, $stilgar;
+assetsql "Status != '__Inactive__'" => $ecaz, $morelax, $stilgar;
+assetsql "Status = '__Inactive__'" => $bloc, $kaitain;
+assetsql "Status != '__Active__'" => $bloc, $kaitain;
 
-assetsql("Catalog = 'Laptops'" => $ecaz, $kaitain);
-assetsql("Catalog = 'Servers'" => $bloc, $morelax);
-assetsql("Catalog = 'Keyboards'" => $stilgar);
-assetsql("Catalog != 'Servers'" => $ecaz, $kaitain, $stilgar);
-assetsql("Catalog != 'Laptops'" => $bloc, $morelax, $stilgar);
-assetsql("Catalog != 'Keyboards'" => $bloc, $ecaz, $kaitain, $morelax);
+assetsql "Catalog = 'Laptops'" => $ecaz, $kaitain;
+assetsql "Catalog = 'Servers'" => $bloc, $morelax;
+assetsql "Catalog = 'Keyboards'" => $stilgar;
+assetsql "Catalog != 'Servers'" => $ecaz, $kaitain, $stilgar;
+assetsql "Catalog != 'Laptops'" => $bloc, $morelax, $stilgar;
+assetsql "Catalog != 'Keyboards'" => $bloc, $ecaz, $kaitain, $morelax;
 
-assetsql("Description LIKE 'data center'" => $morelax);
-assetsql("Description LIKE 'Shawn'" => $bloc, $ecaz);
-assetsql("Description LIKE 'media'" => $bloc);
-assetsql("Description NOT LIKE 'laptop'" => $bloc, $morelax, $stilgar);
-assetsql("Description LIKE 'deleted'" => ());
-assetsql("Description LIKE 'BPS'" => $bloc, $ecaz, $kaitain, $morelax);
+assetsql "Description LIKE 'data center'" => $morelax;
+assetsql "Description LIKE 'Shawn'" => $bloc, $ecaz;
+assetsql "Description LIKE 'media'" => $bloc;
+assetsql "Description NOT LIKE 'laptop'" => $bloc, $morelax, $stilgar;
+assetsql "Description LIKE 'deleted'" => ();
+assetsql "Description LIKE 'BPS'" => $bloc, $ecaz, $kaitain, $morelax;
 
-assetsql("Lifecycle = 'assets'" => $bloc, $ecaz, $kaitain, $morelax, $stilgar);
-assetsql("Lifecycle != 'assets'" => ());
-assetsql("Lifecycle = 'default'" => ());
-assetsql("Lifecycle != 'default'" => $bloc, $ecaz, $kaitain, $morelax, $stilgar);
+assetsql "Lifecycle = 'assets'" => $bloc, $ecaz, $kaitain, $morelax, $stilgar;
+assetsql "Lifecycle != 'assets'" => ();
+assetsql "Lifecycle = 'default'" => ();
+assetsql "Lifecycle != 'default'" => $bloc, $ecaz, $kaitain, $morelax, $stilgar;
 
-assetsql("Linked IS NOT NULL" => $ecaz, $kaitain, $morelax, $stilgar);
-assetsql("Linked IS NULL" => $bloc);
-assetsql("RefersTo = 'asset:" . $kaitain->id . "'" => $ecaz);
-assetsql("RefersTo = " . $ticket->Id => $morelax);
-assetsql("HasMember = 'asset:" . $stilgar->id . "'" => $ecaz);
-assetsql("MemberOf = 'asset:" . $stilgar->id . "'" => ());
+assetsql "Linked IS NOT NULL" => $ecaz, $kaitain, $morelax, $stilgar;
+assetsql "Linked IS NULL" => $bloc;
+assetsql "RefersTo = 'asset:" . $kaitain->id . "'" => $ecaz;
+assetsql "RefersTo = " . $ticket->Id => $morelax;
+assetsql "HasMember = 'asset:" . $stilgar->id . "'" => $ecaz;
+assetsql "MemberOf = 'asset:" . $stilgar->id . "'" => ();
 
-assetsql("Owner.Name = 'shawn'" => $bloc, $ecaz, $kaitain, $stilgar);
-assetsql("Owner.EmailAddress LIKE 'bestpractical'" => $bloc, $ecaz, $kaitain, $stilgar);
-assetsql("Owner.Name = 'Nobody'" => $morelax);
+assetsql "Owner.Name = 'shawn'" => $bloc, $ecaz, $kaitain, $stilgar;
+assetsql "Owner.EmailAddress LIKE 'bestpractical'" => $bloc, $ecaz, $kaitain, $stilgar;
+assetsql "Owner.Name = 'Nobody'" => $morelax;
 
-assetsql("Contact.Name = 'shawn'" => $bloc, $ecaz, $stilgar);
+assetsql "Contact.Name = 'shawn'" => $bloc, $ecaz, $stilgar;
 
-assetsql("CustomField.{Manufacturer} = 'Apple'" => $ecaz, $kaitain, $stilgar);
-assetsql("CF.{Manufacturer} != 'Apple'" => $bloc, $morelax);
-assetsql("CustomFieldValue.{Manufacturer} = 'Raspberry Pi'" => $bloc);
-assetsql("CF.{Manufacturer} IS NULL" => ());
+assetsql "CustomField.{Manufacturer} = 'Apple'" => $ecaz, $kaitain, $stilgar;
+assetsql "CF.{Manufacturer} != 'Apple'" => $bloc, $morelax;
+assetsql "CustomFieldValue.{Manufacturer} = 'Raspberry Pi'" => $bloc;
+assetsql "CF.{Manufacturer} IS NULL" => ();
 
-assetsql("CF.{Blank} IS NULL" => $bloc, $ecaz, $kaitain, $morelax, $stilgar);
-assetsql("CF.{Blank} IS NOT NULL" => ());
+assetsql "CF.{Blank} IS NULL" => $bloc, $ecaz, $kaitain, $morelax, $stilgar;
+assetsql "CF.{Blank} IS NOT NULL" => ();
 
-assetsql("Status = '__Active__' AND Catalog = 'Servers'" => $morelax);
-assetsql("Status = 'in-use' AND Catalog = 'Laptops'" => $ecaz);
-assetsql("Catalog != 'Servers' AND Catalog != 'Laptops'" => $stilgar);
-assetsql("Description LIKE 'BPS' AND Contact.Name IS NULL" => $kaitain, $morelax);
-assetsql("CF.{Manufacturer} = 'Apple' AND Catalog = 'Laptops'" => $ecaz, $kaitain);
-assetsql("Catalog = 'Servers' AND Linked IS NULL" => $bloc);
-assetsql("Catalog = 'Servers' OR Linked IS NULL" => $bloc, $morelax);
-assetsql("(Catalog = 'Keyboards' AND CF.{Manufacturer} = 'Apple') OR (Catalog = 'Servers' AND CF.{Manufacturer} = 'Raspberry Pi')" => $bloc, $stilgar);
+assetsql "Status = '__Active__' AND Catalog = 'Servers'" => $morelax;
+assetsql "Status = 'in-use' AND Catalog = 'Laptops'" => $ecaz;
+assetsql "Catalog != 'Servers' AND Catalog != 'Laptops'" => $stilgar;
+assetsql "Description LIKE 'BPS' AND Contact.Name IS NULL" => $kaitain, $morelax;
+assetsql "CF.{Manufacturer} = 'Apple' AND Catalog = 'Laptops'" => $ecaz, $kaitain;
+assetsql "Catalog = 'Servers' AND Linked IS NULL" => $bloc;
+assetsql "Catalog = 'Servers' OR Linked IS NULL" => $bloc, $morelax;
+assetsql "(Catalog = 'Keyboards' AND CF.{Manufacturer} = 'Apple') OR (Catalog = 'Servers' AND CF.{Manufacturer} = 'Raspberry Pi')" => $bloc, $stilgar;
 
