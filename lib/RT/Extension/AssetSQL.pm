@@ -100,7 +100,7 @@ This step may require root permissions.
 
 =item Patch your RT
 
-AssetSQL requires a patch for your RT isntance. The specific patch to apply
+AssetSQL requires a patch for your RT instance. The specific patch to apply
 depends on which version of RT you're running.
 
 If you're on RT 4.4.0, use rt-4.4.0.patch:
