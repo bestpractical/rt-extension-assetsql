@@ -11,6 +11,48 @@ index 51a8527..c34d650 100644
              my $name = $1 || $2;
              my $cf = RT::CustomField->new( $self->CurrentUser );
              $cf->LoadByNameAndCatalog(
+diff --git a/share/html/Asset/CreateLinkedTicket.html b/share/html/Asset/CreateLinkedTicket.html
+index afcabe5..5d84e7d 100644
+--- a/share/html/Asset/CreateLinkedTicket.html
++++ b/share/html/Asset/CreateLinkedTicket.html
+@@ -47,12 +47,33 @@
+ %# END BPS TAGGED BLOCK }}}
+ <%args>
+ $Asset => undef
++@Assets => ()
+ $Requestors => ''
+ </%args>
+ <%init>
+-my $asset = LoadAsset($Asset);
++my @asset_objs;
++my $single_asset;
++
++# Support passing a single asset or many, as with bulk update.
++if ( $Asset ){
++    push @asset_objs, LoadAsset($Asset);
++    $single_asset = 1;
++}
++elsif ( @Assets ){
++    @asset_objs = map { LoadAsset($_) } @Assets;
++    $single_asset = 1 if @asset_objs == 1;
++}
++else {
++    Abort('No asset specified');
++}
+ </%init>
+-<& /Elements/Header,
+-    Title => loc("Create linked ticket for asset #[_1]: [_2]", $asset->id, $asset->Name) &>
++% if ($single_asset){
++    <& /Elements/Header,
++        Title => loc("Create linked ticket for asset #[_1]: [_2]", $asset_objs[0]->id, $asset_objs[0]->Name) &>
++%}
++%else{
++    <& /Elements/Header,
++        Title => loc("Create linked ticket for multiple assets") &>
++%}
+ <& /Elements/Tabs &>
+-<& /Asset/Elements/CreateLinkedTicket, AssetObj => $asset, Requestors => $Requestors &>
++<& /Asset/Elements/CreateLinkedTicket, AssetObj => \@asset_objs, Requestors => $Requestors &>
 diff --git a/share/html/Asset/Elements/AssetSearchBasics b/share/html/Asset/Elements/AssetSearchBasics
 index c07988b..b7b647a 100644
 --- a/share/html/Asset/Elements/AssetSearchBasics
@@ -24,6 +66,66 @@ index c07988b..b7b647a 100644
         Default => ($ARGS{'Status'} || '') &>
  </td></tr>
  <tr class="asset-name"><td class="label"><label for="Name"><&|/l&>Name</&></label></td>
+diff --git a/share/html/Asset/Elements/CreateLinkedTicket b/share/html/Asset/Elements/CreateLinkedTicket
+index 08121e4..4312917 100644
+--- a/share/html/Asset/Elements/CreateLinkedTicket
++++ b/share/html/Asset/Elements/CreateLinkedTicket
+@@ -50,21 +50,50 @@ $AssetObj
+ $Requestors => ''
+ </%args>
+ <%init>
++my @asset_objs;
++if ( ref $AssetObj eq 'ARRAY' ){
++    # Accept an array of asset objects
++    @asset_objs = @$AssetObj;
++}
++else{
++    # Also support passing a single asset object
++    push @asset_objs, $AssetObj;
++}
++
+ my @description = map { $m->interp->apply_escapes($_, 'h') }
+-    $AssetObj->id, $AssetObj->Name;
++    $asset_objs[0]->id, $asset_objs[0]->Name;
++
++my $refers_to = join ' ', map { "asset:" . $_->id } @asset_objs;
++
++# Find possible requestors
++my %role_addresses;
++foreach my $asset (@asset_objs){
++    for my $role ($asset->Roles) {
++        # Create a hash with email addresses to easily de-dupe the lists from multiple assets
++        map { $role_addresses{$role}{$_} = 1 } $asset->RoleGroup($role)->MemberEmailAddresses;
++    }
++}
++
+ </%init>
+ <form action="<% RT->Config->Get("WebPath") %><% $session{CurrentUser}->Privileged ? "/Ticket" : "/SelfService" %>/Create.html" id="AssetCreateLinkedTicket">
+-  <input name="new-RefersTo" value="asset:<% $AssetObj->id %>" type="hidden">
+-  <input name="Subject" value="<% $AssetObj->Name %>" type="hidden">
++  <input name="new-RefersTo" value="<% $refers_to %>" type="hidden">
++  <input name="Subject" value="<% $asset_objs[0]->Name %>" type="hidden">
++% if ( @asset_objs == 1 ){
+   <&|/l_unsafe,
+     $m->scomp("/Elements/SelectNewTicketQueue"),
+     @description &>Create a new ticket in the [_1] queue about asset #[_2]: [_3].</&>
++% }
++% else {
++<&|/l_unsafe,
++    $m->scomp("/Elements/SelectNewTicketQueue"),
++    &>Create a new ticket in the [_1] queue about multiple assets.</&>
++% }
+ % if ($Requestors) {
+     <input type="hidden" name="Requestors" value="<% $Requestors%>" />
+ % } else {
+ %     my $first = 1;
+-%     for my $role ($AssetObj->Roles) {
+-%         my $addr = $AssetObj->RoleGroup($role)->MemberEmailAddressesAsString;
++%     for my $role ($asset_objs[0]->Roles) {
++%         my $addr = join ', ', keys %{$role_addresses{$role}};
+ %         next unless defined $addr and length $addr;
+   <br>
+   <label>
 diff --git a/share/html/Asset/Elements/SelectCatalog b/share/html/Asset/Elements/SelectCatalog
 index bba70e5..11b4adb 100644
 --- a/share/html/Asset/Elements/SelectCatalog
@@ -86,6 +188,33 @@ index c5e4ae1..135a9c7 100644
  $CatalogObj => undef
 +%Catalogs => ()
  </%args>
+diff --git a/share/html/Asset/Helpers/CreateLinkedTicket b/share/html/Asset/Helpers/CreateLinkedTicket
+index e3f6202..4bb5ea7 100644
+--- a/share/html/Asset/Helpers/CreateLinkedTicket
++++ b/share/html/Asset/Helpers/CreateLinkedTicket
+@@ -46,11 +46,19 @@
+ %#
+ %# END BPS TAGGED BLOCK }}}
+ <%args>
+-$Asset
++@Asset => ()
++$Asset => undef
+ $Requestors => ''
+ </%args>
+ <%init>
+-my $asset = LoadAsset($Asset);
++my @asset_objs;
++if ( @Asset ){
++    @asset_objs = map { LoadAsset($_) } @Asset;
++}
++elsif ( $Asset ){
++    push @asset_objs, LoadAsset($Asset);
++}
++
+ </%init>
+-<& /Asset/Elements/CreateLinkedTicket, AssetObj => $asset, Requestors => $Requestors &>
++<& /Asset/Elements/CreateLinkedTicket, AssetObj => \@asset_objs, Requestors => $Requestors &>
+ % $m->abort;
 diff --git a/share/html/Asset/Search/index.html b/share/html/Asset/Search/index.html
 index 80ada79..39e5da8 100644
 --- a/share/html/Asset/Search/index.html
@@ -146,7 +275,7 @@ index e29e7cf..3820033 100644
          }
      }
 diff --git a/share/html/Elements/ShowSearch b/share/html/Elements/ShowSearch
-index 52e628b..55d8dc8 100644
+index 52e628b..8ada004 100644
 --- a/share/html/Elements/ShowSearch
 +++ b/share/html/Elements/ShowSearch
 @@ -51,7 +51,7 @@
@@ -218,3 +347,33 @@ index 2d6f3c0..328d40f 100644
  $AvailableColumns => undef
 +$IncludeTicketLinks => 1
  </%ARGS>
+diff --git a/share/static/js/assets.js b/share/static/js/assets.js
+index 853ba86..8d5aaa0 100644
+--- a/share/static/js/assets.js
++++ b/share/static/js/assets.js
+@@ -34,6 +34,25 @@ jQuery(function() {
+             showModal
+         );
+     });
++    jQuery("#bulk-update-create-linked-ticket").click(function(ev){
++        ev.preventDefault();
++        var chkArray = [];
++
++        jQuery("input[name='UpdateAsset']:checked").each(function() {
++            chkArray.push(jQuery(this).val());
++        });
++
++        var selected = '';
++        for (var i = 0; i < chkArray.length; i++) {
++            selected += 'Asset=' + chkArray[i] + '&';
++        }
++        /* selected = chkArray.join(','); */
++        var url = RT.Config.WebHomePath + '/Asset/Helpers/CreateLinkedTicket?' + selected;
++        jQuery.post(
++            url,
++            showModal
++        );
++    });
+     jQuery("#assets-create").click(function(ev){
+         ev.preventDefault();
+         jQuery.get(
