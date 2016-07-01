@@ -1,0 +1,6 @@
+0.02
+  - add support for linking multiple assets to a ticket on bulk update
+  - add assets support for upcoming search UI
+
+0.01
+  - initial release
