@@ -55,6 +55,9 @@ while ( my $CustomField = $CustomFields->Next ) {
     push @fields, "CustomField.{" . $CustomField->Name . "}";
 }
 
+my %ranges = %{ RT->Config->Get('CustomDateRanges')->{'RT::Asset'} || {} };
+push @fields, sort keys %ranges;
+
 $m->callback( Fields => \@fields, ARGSRef => \%ARGS );
 
 my ( @seen);
