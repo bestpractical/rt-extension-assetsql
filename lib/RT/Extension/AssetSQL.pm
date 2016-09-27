@@ -134,6 +134,46 @@ as well:
 
 =back
 
+=head1 METHODS
+
+=head2 ProcessAssetSearchFormatConfig
+
+Process the $AssetSearchFormat configuration value.
+
+AssetSQL uses the search formats defined via C<$AssetSearchFormat>
+to format search results. This option accepts one format to use for
+all assets or a hashref with formats defined per catalog. This
+function processes the configuration option and returns the appropriate
+format.
+
+For the hashref version, AssetSQL looks only for the key
+C<AssetSearchFormat> for the default search format. To customize
+the format of the search results for individual searches, use the
+Advanced tab in the Query Builder.
+
+See RT's documentation for C<$AssetSearchFormat> in C<RT_Config.pm>
+for details on setting the search format.
+
+Returns: string with a search format
+
+=cut
+
+package HTML::Mason::Commands;
+
+sub ProcessAssetSearchFormatConfig {
+    my %args = ( @_ );
+
+    my $format = RT->Config->Get('AssetSearchFormat');
+    return $format unless ref $format;
+
+    if( not exists $format->{'AssetSearchFormat'} ){
+        RT::Logger->error("Asset search results format hashref found, but no 'AssetSearchFormat' defined."
+        . " Add an 'AssetSearchFormat' key to your configuration with a default asset search result format.");
+        return;
+    }
+    return $format->{'AssetSearchFormat'};
+}
+
 =head1 AUTHOR
 
 Best Practical Solutions, LLC E<lt>modules@bestpractical.comE<gt>
