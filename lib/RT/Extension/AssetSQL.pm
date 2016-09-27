@@ -3,7 +3,7 @@ use warnings;
 package RT::Extension::AssetSQL;
 use 5.010_001;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 require RT::Extension::AssetSQL::Assets;
 
