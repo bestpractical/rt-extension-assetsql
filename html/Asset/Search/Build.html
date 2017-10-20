@@ -147,8 +147,8 @@ my $cf_field_names =
 
 # Try to find if we're adding a clause
 foreach my $arg ( keys %ARGS ) {
-    next unless $arg =~ m/^ValueOf(\w+|($cf_field_names).\{.*?\})$/
-                && ( ref $ARGS{$arg} eq "ARRAY"
+    next unless $arg =~ m/^ValueOf(\w+|($cf_field_names).\{.*?\}|CustomRole.\{.*?\})$/
+                        && ( ref $ARGS{$arg} eq "ARRAY"
                      ? grep $_ ne '', @{ $ARGS{$arg} }
                      : $ARGS{$arg} ne '' );
 
@@ -201,7 +201,7 @@ push @actions, $m->comp('/Search/Elements/EditQuery:Process',
 my $optionlist_arrayref;
 ($query{'Query'}, $optionlist_arrayref) = $tree->GetQueryAndOptionList(\@current_values);
 
-my $optionlist = join "\n", map { qq(<option value="$_->{INDEX}" $_->{SELECTED}>) 
+my $optionlist = join "\n", map { qq(<option value="$_->{INDEX}" $_->{SELECTED}>)
                                   . ("&nbsp;" x (5 * $_->{DEPTH}))
                                   . $m->interp->apply_escapes($_->{TEXT}, 'h') . qq(</option>) } @$optionlist_arrayref;
 

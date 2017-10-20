@@ -40,23 +40,20 @@ my @fields = qw(
     NBSP
 ); # loc_qw
 
-my $CustomFields = RT::CustomFields->new( $session{'CurrentUser'});
+
+#my %ranges = %{ RT->Config->Get('CustomDateRanges')->{'RT::Asset'} || {} };
+#push @fields, sort keys %ranges;
+
+my $CustomRoles = RT::CustomRoles->new( $session{'CurrentUser'});
 foreach my $id (keys %catalogs) {
-    # Gotta load up the $catalog object, since catalogs get stored by name now.
     my $catalog = RT::Catalog->new($session{'CurrentUser'});
     $catalog->Load($id);
     next unless $catalog->Id;
-    $CustomFields->LimitToCatalog($catalog->Id);
-    $CustomFields->SetContextObject( $catalog ) if keys %catalogs == 1;
+    $CustomRoles->LimitToObjectId($catalog->Id);
 }
-$CustomFields->LimitToCatalog(0);
-
-while ( my $CustomField = $CustomFields->Next ) {
-    push @fields, "CustomField.{" . $CustomField->Name . "}";
+while ( my $Role = $CustomRoles->Next ) {
+    push @fields, "CustomRole.{" . $Role->Name . "}";
 }
-
-my %ranges = %{ RT->Config->Get('CustomDateRanges')->{'RT::Asset'} || {} };
-push @fields, sort keys %ranges;
 
 $m->callback( Fields => \@fields, ARGSRef => \%ARGS );
 
@@ -73,7 +70,7 @@ foreach my $field (@format) {
 
 if ( $RemoveCol ) {
     # we do this regex match to avoid a non-numeric warning
-    my ($index) = ($CurrentDisplayColumns // '') =~ /^(\d+)/;
+    my ($index) = ($CurrentDisplayColumns // '') =~ /^(\d)/;
     if ( defined($index) ) {
         delete $seen[$index];
         my @temp = @seen;
@@ -122,7 +119,7 @@ elsif ( $AddCol ) {
     }
 }
 elsif ( $ColUp ) {
-    my ($index) = ($CurrentDisplayColumns // '') =~ /^(\d+)/;
+    my ($index) = ($CurrentDisplayColumns // '') =~ /^(\d)/;
     if ( defined $index && ( $index - 1 ) >= 0 ) {
         my $column = $seen[$index];
         $seen[$index]       = $seen[ $index - 1 ];
@@ -131,7 +128,7 @@ elsif ( $ColUp ) {
     }
 }
 elsif ( $ColDown ) {
-    my ($index) = ($CurrentDisplayColumns // '') =~ /^(\d+)/;
+    my ($index) = ($CurrentDisplayColumns // '') =~ /^(\d)/;
     if ( defined $index && ( $index + 1 ) < scalar @seen ) {
         my $column = $seen[$index];
         $seen[$index]       = $seen[ $index + 1 ];

@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use 5.010;
+# use RT::CustomRoles;
 
 package RT::Assets;
 
@@ -69,7 +70,7 @@ sub ItemsArrayRefWindow {
     my $self = shift;
     my $window = shift;
 
-    my @old = ($self->_ItemsCounter, $self->RowsPerPage, $self->FirstRow+1);
+    my @old = ($self->_ItemsCounter, $self->RowsPerPage, $self->FirstRow1);
 
     $self->RowsPerPage( $window );
     $self->FirstRow(1);
@@ -462,6 +463,9 @@ our %FIELD_METADATA = (
     Contact         => [ 'WATCHERFIELD' => 'Contact', ], #loc_left_pair
     ContactGroup    => [ 'MEMBERSHIPFIELD' => 'Contact', ], #loc_left_pair
 
+    CustomRole       => [ 'WATCHERFIELD' ], # loc_left_pair
+    CustomRole       => [ 'WATCHERFIELD' ], # loc_left_pair
+
     CustomFieldValue => [ 'CUSTOMFIELD' => 'Asset' ], #loc_left_pair
     CustomField      => [ 'CUSTOMFIELD' => 'Asset' ], #loc_left_pair
     CF               => [ 'CUSTOMFIELD' => 'Asset' ], #loc_left_pair
@@ -608,7 +612,7 @@ sub _EnumLimit {
         or $op     eq "!=";
 
     my $meta = $FIELD_METADATA{$field};
-    if ( defined $meta->[1] && defined $value && $value !~ /^\d+$/ ) {
+    if ( defined $meta->[1] && defined $value && $value !~ /^\d$/ ) {
         my $class = "RT::" . $meta->[1];
         my $o     = $class->new( $sb->CurrentUser );
         $o->Load($value);
@@ -792,13 +796,13 @@ sub _DateLimit {
     my ( $sb, $field, $op, $value, %rest ) = @_;
 
     die "Invalid Date Op: $op"
-        unless $op =~ /^(=|>|<|>=|<=|IS(\s+NOT)?)$/i;
+        unless $op =~ /^(=|>|<|>=|<=|IS(\sNOT)?)$/i;
 
     my $meta = $FIELD_METADATA{$field};
     die "Incorrect Meta Data for $field"
         unless ( defined $meta->[1] );
 
-    if ( $op =~ /^(IS(\s+NOT)?)$/i) {
+    if ( $op =~ /^(IS(\sNOT)?)$/i) {
         return $sb->Limit(
             FUNCTION => $sb->NotSetDateToNullFunction,
             FIELD    => $meta->[1],
@@ -810,12 +814,12 @@ sub _DateLimit {
 
     if ( my $subkey = $rest{SUBKEY} ) {
         if ( $subkey eq 'DayOfWeek' && $op !~ /IS/i && $value =~ /[^0-9]/ ) {
-            for ( my $i = 0; $i < @RT::Date::DAYS_OF_WEEK; $i++ ) {
+            for ( my $i = 0; $i < @RT::Date::DAYS_OF_WEEK; $i ) {
                 # Use a case-insensitive regex for better matching across
                 # locales since we don't have fc() and lc() is worse.  Really
                 # we should be doing Unicode normalization too, but we don't do
                 # that elsewhere in RT.
-                # 
+                #
                 # XXX I18N: Replace the regex with fc() once we're guaranteed 5.16.
                 next unless lc $RT::Date::DAYS_OF_WEEK[ $i ] eq lc $value
                          or $sb->CurrentUser->loc($RT::Date::DAYS_OF_WEEK[ $i ]) =~ /^\Q$value\E$/i;
@@ -826,12 +830,12 @@ sub _DateLimit {
                 if $value =~ /[^0-9]/;
         }
         elsif ( $subkey eq 'Month' && $op !~ /IS/i && $value =~ /[^0-9]/ ) {
-            for ( my $i = 0; $i < @RT::Date::MONTHS; $i++ ) {
+            for ( my $i = 0; $i < @RT::Date::MONTHS; $i ) {
                 # Use a case-insensitive regex for better matching across
                 # locales since we don't have fc() and lc() is worse.  Really
                 # we should be doing Unicode normalization too, but we don't do
                 # that elsewhere in RT.
-                # 
+                #
                 # XXX I18N: Replace the regex with fc() once we're guaranteed 5.16.
                 next unless lc $RT::Date::MONTHS[ $i ] eq lc $value
                          or $sb->CurrentUser->loc($RT::Date::MONTHS[ $i ]) =~ /^\Q$value\E$/i;
@@ -972,7 +976,13 @@ sub _WatcherLimit {
     my $meta = $FIELD_METADATA{ $field };
     my $type = $meta->[1] || '';
     my $class = $meta->[2] || 'Asset';
+    my $column = $rest{"SUBKEY"};
 
+    if ($field eq 'CustomRole') {
+        my ($role, $col, $original_name) = $self->_CustomRoleDecipher( $column );
+        $column = $col || 'id';
+        $type = $role ? $role->GroupType : $original_name;
+    }
     # Bail if the subfield is not allowed
     if (    $rest{SUBKEY}
         and not grep { $_ eq $rest{SUBKEY} } @{$SEARCHABLE_SUBFIELDS{'User'}})
@@ -1008,7 +1018,7 @@ sub _WatcherMembershipLimit {
     die "Invalid $field Op: $op"
         unless $op =~ /^=$/;
 
-    unless ( $value =~ /^\d+$/ ) {
+    unless ( $value =~ /^\d$/ ) {
         my $group = RT::Group->new( $self->CurrentUser );
         $group->LoadUserDefinedGroup( $value );
         $value = $group->id || 0;
@@ -1042,82 +1052,39 @@ sub _WatcherMembershipLimit {
     );
 }
 
-=head2 _CustomFieldDecipher
+=head2 _CustomRoleDecipher
 
-Try and turn a CF descriptor into (cfid, cfname) object pair.
-
-Takes an optional second parameter of the CF LookupType, defaults to Asset CFs.
+Try and turn a custom role descriptor (e.g. C<CustomRole.{Engineer}>) into
+(role, column, original name).
 
 =cut
 
-sub _CustomFieldDecipher {
-    my ($self, $string, $lookuptype) = @_;
-    $lookuptype ||= $self->_SingularClass->CustomFieldLookupType;
+sub _CustomRoleDecipher {
+    my ($self, $string) = @_;
 
-    my ($object, $field, $column) = ($string =~ /^(?:(.+?)\.)?\{(.+)\}(?:\.(Content|LargeContent))?$/);
-    $field ||= ($string =~ /^\{(.*?)\}$/)[0] || $string;
+    my ($field, $column) = ($string =~ /^\{(.)\}(?:\.(\w))?$/);
 
-    my ($cf, $applied_to);
-
-    if ( $object ) {
-        my $record_class = RT::CustomField->RecordClassFromLookupType($lookuptype);
-        $applied_to = $record_class->new( $self->CurrentUser );
-        $applied_to->Load( $object );
-
-        if ( $applied_to->id ) {
-            RT->Logger->debug("Limiting to CFs identified by '$field' applied to $record_class #@{[$applied_to->id]} (loaded via '$object')");
-        }
-        else {
-            RT->Logger->warning("$record_class '$object' doesn't exist, parsed from '$string'");
-            $object = 0;
-            undef $applied_to;
-        }
-    }
+    my $role;
 
     if ( $field =~ /\D/ ) {
-        $object ||= '';
-        my $cfs = RT::CustomFields->new( $self->CurrentUser );
-        $cfs->Limit( FIELD => 'Name', VALUE => $field, CASESENSITIVE => 0 );
-        $cfs->LimitToLookupType($lookuptype);
+        my $roles = RT::CustomRoles->new( $self->CurrentUser );
+        $roles->Limit( FIELD => 'Name', VALUE => $field, CASESENSITIVE => 0 );
 
-        if ($applied_to) {
-            $cfs->SetContextObject($applied_to);
-            $cfs->LimitToObjectId($applied_to->id);
+        # custom roles are named uniquely, but just in case there are
+        # multiple matches, bail out as we don't know which one to use
+        $role = $roles->First;
+        if ( $role ) {
+            $role = undef if $roles->Next;
         }
-
-        # if there is more then one field the current user can
-        # see with the same name then we shouldn't return cf object
-        # as we don't know which one to use
-        $cf = $cfs->First;
-        if ( $cf ) {
-            $cf = undef if $cfs->Next;
-        }
-        else {
-            # find the cf without ACL
-            # this is because current _CustomFieldJoinByName has a bug that
-            # can't search correctly with negative cf ops :/
-            my $cfs = RT::CustomFields->new( RT->SystemUser );
-            $cfs->Limit( FIELD => 'Name', VALUE => $field, CASESENSITIVE => 0 );
-            $cfs->LimitToLookupType( $lookuptype );
-
-            if ( $applied_to ) {
-                $cfs->SetContextObject( $applied_to );
-                $cfs->LimitToObjectId( $applied_to->id );
-            }
-
-            $cf = $cfs->First unless $cfs->Count > 1;
-        }
-
     }
     else {
-        $cf = RT::CustomField->new( $self->CurrentUser );
-        $cf->Load( $field );
-        $cf->SetContextObject($applied_to)
-            if $cf->id and $applied_to;
+        $role = RT::CustomRole->new( $self->CurrentUser );
+        $role->Load( $field );
     }
 
-    return ($object, $field, $cf, $column);
+    return ($role, $column, $field);
 }
+
 
 =head2 _CustomFieldLimit
 
@@ -1465,7 +1432,7 @@ sub _RestrictionsToClauses {
 
         # Two special case
         # Handle subkey fields with a different real field
-        if ( $field =~ /^(\w+)\./ ) {
+        if ( $field =~ /^(\w)\./ ) {
             $realfield = $1;
         }
 
@@ -1586,4 +1553,3 @@ sub _ProcessRestrictions {
 }
 
 1;
-

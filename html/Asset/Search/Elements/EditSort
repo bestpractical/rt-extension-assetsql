@@ -43,8 +43,8 @@ selected="selected"
 <td class="label">
 <&|/l&>Rows per page</&>:
 </td><td class="value">
-<& /Elements/SelectResultsPerPage, 
-    Name => "RowsPerPage", 
+<& /Elements/SelectResultsPerPage,
+    Name => "RowsPerPage",
     Default => $RowsPerPage &>
 </td>
 </tr>
@@ -68,6 +68,15 @@ $fields{'Contact'} = 'Contact';
 # Add all available CustomFields to the list of sortable columns.
 my @cfs = grep /^CustomField/, @{$ARGS{AvailableColumns}};
 $fields{$_} = $_ for @cfs;
+
+# Add all available CustomRoles to the list of sortable columns.
+my @roles = grep /^CustomRole/, @{$ARGS{AvailableColumns}};
+for my $role (@roles) {
+    my ($label) = $role =~ /^CustomRole.{(.*)}$/;
+    my $value = $role;
+    $fields{$label . '.EmailAddress' } = $value . '.EmailAddress';
+}
+
 
 # Add PAW sort
 $fields{'Custom.Ownership'} = 'Custom.Ownership';
