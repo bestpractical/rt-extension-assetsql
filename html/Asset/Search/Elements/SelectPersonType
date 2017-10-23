@@ -24,24 +24,24 @@ if ($Role) {
       [ "CustomRole.{" . $Role->Name . "}", $Role->Name ],
    );
 }
-elsif ($Scope =~ /queue/) {
+elsif ($Scope =~ /catalog/) {
    @types = qw(Cc AdminCc);
 }
 elsif ($Suffix eq 'Group') {
    @types = qw(Owner Requestor Cc AdminCc Watcher);
 }
 else {
-   @types = qw(Requestor Cc AdminCc Watcher Owner QueueCc QueueAdminCc QueueWatcher);
+   @types = qw(Requestor Cc AdminCc Watcher Owner CatalogCc CatalogAdminCc CatalogWatcher);
 }
 
-my @subtypes = @{ $RT::Tickets::SEARCHABLE_SUBFIELDS{'User'} };
+my @subtypes = @{ $RT::Assets::SEARCHABLE_SUBFIELDS{'User'} };
 
 </%INIT>
 <%ARGS>
 $AllowNull => 1
 $Suffix => ''
 $Default=>undef
-$Scope => 'ticket'
+$Scope => 'asset'
 $Name => 'WatcherType'
 $Role => undef
 </%ARGS>

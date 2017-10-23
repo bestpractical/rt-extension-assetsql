@@ -464,7 +464,6 @@ our %FIELD_METADATA = (
     ContactGroup    => [ 'MEMBERSHIPFIELD' => 'Contact', ], #loc_left_pair
 
     CustomRole       => [ 'WATCHERFIELD' ], # loc_left_pair
-    CustomRole       => [ 'WATCHERFIELD' ], # loc_left_pair
 
     CustomFieldValue => [ 'CUSTOMFIELD' => 'Asset' ], #loc_left_pair
     CustomField      => [ 'CUSTOMFIELD' => 'Asset' ], #loc_left_pair
@@ -612,7 +611,7 @@ sub _EnumLimit {
         or $op     eq "!=";
 
     my $meta = $FIELD_METADATA{$field};
-    if ( defined $meta->[1] && defined $value && $value !~ /^\d$/ ) {
+    if ( defined $meta->[1] && defined $value && $value !~ /^\d+$/ ) {
         my $class = "RT::" . $meta->[1];
         my $o     = $class->new( $sb->CurrentUser );
         $o->Load($value);
@@ -796,13 +795,13 @@ sub _DateLimit {
     my ( $sb, $field, $op, $value, %rest ) = @_;
 
     die "Invalid Date Op: $op"
-        unless $op =~ /^(=|>|<|>=|<=|IS(\sNOT)?)$/i;
+        unless $op =~ /^(=|>|<|>=|<=|IS(\s+NOT)?)$/i;
 
     my $meta = $FIELD_METADATA{$field};
     die "Incorrect Meta Data for $field"
         unless ( defined $meta->[1] );
 
-    if ( $op =~ /^(IS(\sNOT)?)$/i) {
+    if ( $op =~ /^(IS(\s+NOT)?)$/i) {
         return $sb->Limit(
             FUNCTION => $sb->NotSetDateToNullFunction,
             FIELD    => $meta->[1],
@@ -814,7 +813,7 @@ sub _DateLimit {
 
     if ( my $subkey = $rest{SUBKEY} ) {
         if ( $subkey eq 'DayOfWeek' && $op !~ /IS/i && $value =~ /[^0-9]/ ) {
-            for ( my $i = 0; $i < @RT::Date::DAYS_OF_WEEK; $i ) {
+            for ( my $i = 0; $i < @RT::Date::DAYS_OF_WEEK; $i++ ) {
                 # Use a case-insensitive regex for better matching across
                 # locales since we don't have fc() and lc() is worse.  Really
                 # we should be doing Unicode normalization too, but we don't do
@@ -830,7 +829,7 @@ sub _DateLimit {
                 if $value =~ /[^0-9]/;
         }
         elsif ( $subkey eq 'Month' && $op !~ /IS/i && $value =~ /[^0-9]/ ) {
-            for ( my $i = 0; $i < @RT::Date::MONTHS; $i ) {
+            for ( my $i = 0; $i < @RT::Date::MONTHS; $i++ ) {
                 # Use a case-insensitive regex for better matching across
                 # locales since we don't have fc() and lc() is worse.  Really
                 # we should be doing Unicode normalization too, but we don't do
@@ -976,7 +975,7 @@ sub _WatcherLimit {
     my $meta = $FIELD_METADATA{ $field };
     my $type = $meta->[1] || '';
     my $class = $meta->[2] || 'Asset';
-    my $column = $rest{"SUBKEY"};
+    my $column = $rest{SUBKEY};
 
     if ($field eq 'CustomRole') {
         my ($role, $col, $original_name) = $self->_CustomRoleDecipher( $column );
@@ -984,16 +983,16 @@ sub _WatcherLimit {
         $type = $role ? $role->GroupType : $original_name;
     }
     # Bail if the subfield is not allowed
-    if (    $rest{SUBKEY}
-        and not grep { $_ eq $rest{SUBKEY} } @{$SEARCHABLE_SUBFIELDS{'User'}})
+    if (    $column
+        and not grep { $_ eq $column } @{$SEARCHABLE_SUBFIELDS{'User'}})
     {
-        die "Invalid watcher subfield: '$rest{SUBKEY}'";
+        die "Invalid watcher subfield: '$column'";
     }
 
     $self->RoleLimit(
         TYPE      => $type,
         CLASS     => "RT::$class",
-        FIELD     => $rest{SUBKEY},
+        FIELD     => $column,
         OPERATOR  => $op,
         VALUE     => $value,
         SUBCLAUSE => "assetsql",
@@ -1018,7 +1017,7 @@ sub _WatcherMembershipLimit {
     die "Invalid $field Op: $op"
         unless $op =~ /^=$/;
 
-    unless ( $value =~ /^\d$/ ) {
+    unless ( $value =~ /^\d+$/ ) {
         my $group = RT::Group->new( $self->CurrentUser );
         $group->LoadUserDefinedGroup( $value );
         $value = $group->id || 0;
@@ -1052,6 +1051,68 @@ sub _WatcherMembershipLimit {
     );
 }
 
+=head2 _CustomFieldDecipher
+
+Try and turn a CF descriptor into (cfid, cfname) object pair.
+
+Takes an optional second parameter of the CF LookupType, defaults to Ticket CFs.
+
+=cut
+
+sub _CustomFieldDecipher {
+    my ($self, $string, $lookuptype) = @_;
+    $lookuptype ||= $self->_SingularClass->CustomFieldLookupType;
+
+    my ($object, $field, $column) = ($string =~ /^(?:(.+?)\.)?\{(.+)\}(?:\.(Content|LargeContent))?$/);
+    $field ||= ($string =~ /^\{(.*?)\}$/)[0] || $string;
+
+    my ($cf, $applied_to);
+
+    if ( $object ) {
+        my $record_class = RT::CustomField->RecordClassFromLookupType($lookuptype);
+        $applied_to = $record_class->new( $self->CurrentUser );
+        $applied_to->Load( $object );
+
+        if ( $applied_to->id ) {
+            RT->Logger->debug("Limiting to CFs identified by '$field' applied to $record_class #@{[$applied_to->id]} (loaded via '$object')");
+        }
+        else {
+            RT->Logger->warning("$record_class '$object' doesn't exist, parsed from '$string'");
+            $object = 0;
+            undef $applied_to;
+        }
+    }
+
+    if ( $field =~ /\D/ ) {
+        $object ||= '';
+        my $cfs = RT::CustomFields->new( $self->CurrentUser );
+        $cfs->Limit( FIELD => 'Name', VALUE => $field, CASESENSITIVE => 0 );
+        $cfs->LimitToLookupType($lookuptype);
+
+        if ($applied_to) {
+            $cfs->SetContextObject($applied_to);
+            $cfs->LimitToObjectId($applied_to->id);
+        }
+
+        # if there is more then one field the current user can
+        # see with the same name then we shouldn't return cf object
+        # as we don't know which one to use
+        $cf = $cfs->First;
+        if ( $cf ) {
+            $cf = undef if $cfs->Next;
+        }
+    }
+    else {
+        $cf = RT::CustomField->new( $self->CurrentUser );
+        $cf->Load( $field );
+        $cf->SetContextObject($applied_to)
+            if $cf->id and $applied_to;
+    }
+
+    return ($object, $field, $cf, $column);
+}
+
+
 =head2 _CustomRoleDecipher
 
 Try and turn a custom role descriptor (e.g. C<CustomRole.{Engineer}>) into
@@ -1062,7 +1123,7 @@ Try and turn a custom role descriptor (e.g. C<CustomRole.{Engineer}>) into
 sub _CustomRoleDecipher {
     my ($self, $string) = @_;
 
-    my ($field, $column) = ($string =~ /^\{(.)\}(?:\.(\w))?$/);
+    my ($field, $column) = ($string =~ /^\{(.+)\}(?:\.(\w+))?$/);
 
     my $role;
 
