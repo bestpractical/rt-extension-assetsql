@@ -5,6 +5,7 @@
 
 % $m->callback( %ARGS, CallbackName => "BeforeBasics" );
 <& PickBasics, catalogs => \%catalogs &>
+<& PickCustomRoles, catalogs => \%catalogs &>
 <& PickAssetCFs, catalogs => \%catalogs &>
 % $m->callback( %ARGS, CallbackName => "AfterCFs" );
 

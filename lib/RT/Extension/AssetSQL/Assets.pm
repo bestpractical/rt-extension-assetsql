@@ -462,6 +462,8 @@ our %FIELD_METADATA = (
     Contact         => [ 'WATCHERFIELD' => 'Contact', ], #loc_left_pair
     ContactGroup    => [ 'MEMBERSHIPFIELD' => 'Contact', ], #loc_left_pair
 
+    CustomRole       => [ 'WATCHERFIELD' ], # loc_left_pair
+
     CustomFieldValue => [ 'CUSTOMFIELD' => 'Asset' ], #loc_left_pair
     CustomField      => [ 'CUSTOMFIELD' => 'Asset' ], #loc_left_pair
     CF               => [ 'CUSTOMFIELD' => 'Asset' ], #loc_left_pair
@@ -972,18 +974,24 @@ sub _WatcherLimit {
     my $meta = $FIELD_METADATA{ $field };
     my $type = $meta->[1] || '';
     my $class = $meta->[2] || 'Asset';
+    my $column = $rest{SUBKEY};
 
+    if ($field eq 'CustomRole') {
+        my ($role, $col, $original_name) = $self->_CustomRoleDecipher( $column );
+        $column = $col || 'id';
+        $type = $role ? $role->GroupType : $original_name;
+    }
     # Bail if the subfield is not allowed
-    if (    $rest{SUBKEY}
-        and not grep { $_ eq $rest{SUBKEY} } @{$SEARCHABLE_SUBFIELDS{'User'}})
+    if (    $column
+        and not grep { $_ eq $column } @{$SEARCHABLE_SUBFIELDS{'User'}})
     {
-        die "Invalid watcher subfield: '$rest{SUBKEY}'";
+        die "Invalid watcher subfield: '$column'";
     }
 
     $self->RoleLimit(
         TYPE      => $type,
         CLASS     => "RT::$class",
-        FIELD     => $rest{SUBKEY},
+        FIELD     => $column,
         OPERATOR  => $op,
         VALUE     => $value,
         SUBCLAUSE => "assetsql",
@@ -1107,7 +1115,6 @@ sub _CustomFieldDecipher {
 
             $cf = $cfs->First unless $cfs->Count > 1;
         }
-
     }
     else {
         $cf = RT::CustomField->new( $self->CurrentUser );
@@ -1118,6 +1125,41 @@ sub _CustomFieldDecipher {
 
     return ($object, $field, $cf, $column);
 }
+
+
+=head2 _CustomRoleDecipher
+
+Try and turn a custom role descriptor (e.g. C<CustomRole.{Engineer}>) into
+(role, column, original name).
+
+=cut
+
+sub _CustomRoleDecipher {
+    my ($self, $string) = @_;
+
+    my ($field, $column) = ($string =~ /^\{(.+)\}(?:\.(\w+))?$/);
+
+    my $role;
+
+    if ( $field =~ /\D/ ) {
+        my $roles = RT::CustomRoles->new( $self->CurrentUser );
+        $roles->Limit( FIELD => 'Name', VALUE => $field, CASESENSITIVE => 0 );
+
+        # custom roles are named uniquely, but just in case there are
+        # multiple matches, bail out as we don't know which one to use
+        $role = $roles->First;
+        if ( $role ) {
+            $role = undef if $roles->Next;
+        }
+     }
+    else {
+        $role = RT::CustomRole->new( $self->CurrentUser );
+        $role->Load( $field );
+    }
+
+    return ($role, $column, $field);
+}
+
 
 =head2 _CustomFieldLimit
 
@@ -1586,4 +1628,3 @@ sub _ProcessRestrictions {
 }
 
 1;
-
