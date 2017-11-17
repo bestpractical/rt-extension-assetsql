@@ -10,6 +10,7 @@ html/Asset/Search/Elements/EditSort
 html/Asset/Search/Elements/PickAssetCFs
 html/Asset/Search/Elements/PickBasics
 html/Asset/Search/Elements/PickCriteria
+html/Asset/Search/Elements/PickCustomRoles
 html/Asset/Search/Elements/SelectLinks
 html/Asset/Search/Elements/SelectPersonType
 html/Asset/Search/Results.html

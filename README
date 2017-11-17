@@ -41,6 +41,10 @@ INSTALLATION
 
     Restart your webserver
 
+DESCRIPTION
+    This version of RT::Extension::AssetSQL adds custom role searching for
+    assets.
+
 METHODS
   ProcessAssetSearchFormatConfig
     Process the $AssetSearchFormat configuration value.

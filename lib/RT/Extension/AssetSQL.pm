@@ -3,7 +3,7 @@ use warnings;
 package RT::Extension::AssetSQL;
 use 5.010_001;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 require RT::Extension::AssetSQL::Assets;
 
@@ -133,6 +133,11 @@ as well:
 =item Restart your webserver
 
 =back
+
+=head1 DESCRIPTION
+
+This version of RT::Extension::AssetSQL adds custom role searching
+for assets.
 
 =head1 METHODS
 
