@@ -28,13 +28,15 @@ elsif ($Scope =~ /catalog/) {
    @types = qw(Cc AdminCc);
 }
 elsif ($Suffix eq 'Group') {
-   @types = qw(Owner HeldBy Contact Watcher);
+   @types = qw(Owner HeldBy Contact );
 }
 else {
-   @types = qw( Watcher Owner CatalogWatcher HeldBy contact );
+   @types = qw( Watcher Owner HeldBy contact );
 }
 
 my @subtypes = @{ $RT::Assets::SEARCHABLE_SUBFIELDS{'User'} };
+use Data::Printer;
+p(@{ $RT::Assets::SEARCHABLE_SUBFIELDS{'User'} });
 
 $m->callback(Types => \@types, Subtypes => \@subtypes);
 </%INIT>
