@@ -1,3 +1,6 @@
+0.06 2017-12-15
+  - Remove incorrect watcher options from role dropdowns
+
 0.05 2017-11-17
   - Add Custom Role search to asset sql
 
