@@ -717,11 +717,14 @@ sub _LinkLimit {
 #        WHERE Links_1.LocalBase IS NULL;
 
     my $join_expression;
+    my $local_prefix = RT::URI::asset->new( RT->SystemUser )->LocalURIPrefix;
+    $local_prefix .= '/' unless $local_prefix =~ m{/$};
+
     if ( RT->Config->Get('DatabaseType') eq 'SQLite' ) {
-        $join_expression = q{'} . RT::URI::asset->new( RT->SystemUser )->LocalURIPrefix . q{' ||  main.id};
+        $join_expression = qq{'$local_prefix' || main.id};
     }
     else {
-        $join_expression = q{CONCAT( '} . RT::URI::asset->new( RT->SystemUser )->LocalURIPrefix . q{',  main.id )};
+        $join_expression = qq{CONCAT( '$local_prefix',  main.id )};
     }
     if ( $is_null ) {
         my $linkalias = $sb->Join(
